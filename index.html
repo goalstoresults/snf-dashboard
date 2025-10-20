@@ -26,7 +26,6 @@
       background:#fff;cursor:pointer}
     .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
     .btn.small{padding:6px 10px}
-    .btn.linklike{background:transparent;border:none;color:var(--accent);padding:0;cursor:pointer}
     .btn:disabled{opacity:.6;cursor:not-allowed}
     .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
     .muted{color:var(--muted)}
@@ -38,7 +37,7 @@
     .modal header{border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
     .modal footer{display:flex;gap:10px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--border)}
     .modal .content{padding:16px}
-    /* Autocomplete placeholder */
+    /* Autocomplete */
     .ac-wrap{position:relative}
     .ac-list{position:absolute;z-index:40;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--border);
       border-radius:10px;max-height:240px;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.08);display:none}
@@ -55,7 +54,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.5</div>
+    <div id="version">SNF UI v0.6</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -115,31 +114,17 @@
 
           <div class="row">
             <div class="grow">
-              <div class="label">Referred By (optional)</div>
-
-              <!-- Option A (future): search picker (disabled now) -->
-              <div class="ac-wrap" style="margin-bottom:6px">
-                <input class="input" id="ref-search" placeholder="Search will be added later" disabled />
-                <div class="ac-list" id="ref-list" style="display:none"></div>
+              <div class="label">Referred By (optional — type at least 2 characters)</div>
+              <div class="ac-wrap">
+                <input class="input" id="ref-search" placeholder="e.g., Smith, Jane  or  jane@company.com" />
+                <div class="ac-list" id="ref-list"></div>
               </div>
-
-              <!-- Option B (now): paste GHL ID for testing -->
-              <div class="muted" style="margin:6px 0">
-                <button type="button" class="btn linklike" id="toggle-ghl">Use GHL ID (testing)</button>
-              </div>
-              <div id="ghl-id-wrap" style="display:none">
-                <div class="label">Referrer GHL ID</div>
-                <input class="input" id="ref-ghl-id-manual" placeholder="paste exact ghl_id from snf_contacts" />
-              </div>
-
               <!-- canonical field the worker reads -->
               <input type="hidden" name="referred_by_id" id="ref-ghl-id" />
-
               <div id="ref-pill" style="margin-top:8px; display:none;" class="pill">
                 <span id="ref-pill-text"></span>
                 <span class="x" id="ref-pill-x">✕</span>
               </div>
-
               <div class="muted" style="margin-top:6px; display:flex; gap:10px; align-items:center;">
                 <button type="button" class="btn small" id="ref-skip">Skip referrer</button>
               </div>
@@ -157,8 +142,9 @@
   </div>
 
   <script>
-    // ===== Config: absolute API base (Worker)
-    const API_BASE = 'https://snf-add-client.dennis-e64.workers.dev';
+    // ===== Config: absolute API bases (Workers)
+    const API_BASE_ADD    = 'https://snf-add-client.dennis-e64.workers.dev';
+    const API_BASE_SEARCH = 'https://snf-search-contacts.dennis-e64.workers.dev';
 
     // ===== Tabs
     const tabs = document.querySelectorAll('.tab');
@@ -185,30 +171,22 @@
     modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalBackdrop.style.display === 'flex') closeModal(); });
 
-    // ===== Referrer (manual GHL ID testing)
+    // ===== Referral search
+    const refInput = document.getElementById('ref-search');
+    const refList  = document.getElementById('ref-list');
     const refGhlId = document.getElementById('ref-ghl-id');
-    const refGhlIdManual = document.getElementById('ref-ghl-id-manual');
-    const refToggle = document.getElementById('toggle-ghl');
-    const refWrap = document.getElementById('ghl-id-wrap');
-    const refSkip = document.getElementById('ref-skip');
     const refPill  = document.getElementById('ref-pill');
     const refPillText = document.getElementById('ref-pill-text');
     const refPillX = document.getElementById('ref-pill-x');
+    const refSkip = document.getElementById('ref-skip');
     const formMsg = document.getElementById('form-msg');
 
-    refToggle.addEventListener('click', () => {
-      refWrap.style.display = (refWrap.style.display === 'none' || !refWrap.style.display) ? 'block' : 'none';
-    });
-
-    refGhlIdManual.addEventListener('input', () => {
-      const id = refGhlIdManual.value.trim();
-      refGhlId.value = id || '';
-      if (id) {
-        refPillText.textContent = `ghl_id: ${id}`;
-        refPill.style.display = 'inline-flex';
-      } else {
-        refPill.style.display = 'none';
-      }
+    let acTimer = null;
+    refInput.addEventListener('input', () => {
+      const q = refInput.value.trim();
+      if (acTimer) clearTimeout(acTimer);
+      if (q.length < 2) { refList.style.display='none'; return; }
+      acTimer = setTimeout(async () => { await loadContactMatches(q); }, 250);
     });
 
     refPillX.addEventListener('click', clearReferrer);
@@ -216,8 +194,58 @@
 
     function clearReferrer(){
       refGhlId.value = '';
-      refGhlIdManual.value = '';
       refPill.style.display = 'none';
+      refList.style.display = 'none';
+      refInput.value = '';
+      refInput.blur();
+    }
+
+    async function loadContactMatches(q) {
+      refList.innerHTML = '<div class="ac-item muted">Searching…</div>';
+      refList.style.display = 'block';
+      try {
+        const url = new URL('/snf-search-contacts', API_BASE_SEARCH);
+        url.searchParams.set('q', q);
+        url.searchParams.set('limit', '10');
+
+        const res = await fetch(url.toString(), { method: 'GET', headers: { 'Accept': 'application/json' } });
+        const txt = await res.text();
+        let data = null; try { data = JSON.parse(txt); } catch {}
+        if (!res.ok) throw new Error((data && (data.error || data.message)) || txt || `HTTP ${res.status}`);
+
+        const rows = (data && data.rows) || [];
+        if (!rows.length) {
+          refList.innerHTML = '<div class="ac-item muted">No matches</div>';
+          return;
+        }
+        // Sort Last, First
+        rows.sort((a,b) => {
+          const la = (a.last_name || '').toLowerCase();
+          const lb = (b.last_name || '').toLowerCase();
+          if (la !== lb) return la < lb ? -1 : 1;
+          const fa = (a.first_name || '').toLowerCase();
+          const fb = (b.first_name || '').toLowerCase();
+          return fa < fb ? -1 : (fa > fb ? 1 : 0);
+        });
+
+        refList.innerHTML = '';
+        rows.forEach(r => {
+          const div = document.createElement('div');
+          div.className = 'ac-item';
+          const label = `${(r.last_name||'').trim()}, ${(r.first_name||'').trim()} — ${r.email||'no email'}`;
+          div.textContent = label;
+          div.onclick = () => {
+            refGhlId.value = r.ghl_id; // hidden FK
+            refPillText.textContent = label;
+            refPill.style.display = 'inline-flex';
+            refList.style.display = 'none';
+            refInput.value = '';
+          };
+          refList.appendChild(div);
+        });
+      } catch (e) {
+        refList.innerHTML = `<div class="ac-item" style="color:var(--danger)">Search error: ${e.message}</div>`;
+      }
     }
 
     // ===== Save Client
@@ -231,7 +259,7 @@
 
       try {
         setMsg('Saving…');
-        const res = await fetch(`${API_BASE}/snf-add-client`, {
+        const res = await fetch(`${API_BASE_ADD}/snf-add-client`, {
           method: 'POST',
           headers: { 'Content-Type':'application/json', 'Accept':'application/json' },
           body: JSON.stringify(payload)
