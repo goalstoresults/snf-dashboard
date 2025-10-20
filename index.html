@@ -48,7 +48,6 @@
     #version{font-size:12px;color:var(--muted)}
     .error{color:var(--danger);font-size:12px;margin-top:6px}
     .success{color:var(--accent-2);font-size:12px;margin-top:6px}
-
     /* Clients table */
     .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
     table{width:100%;border-collapse:separate;border-spacing:0;background:#fff}
@@ -62,7 +61,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.9</div>
+    <div id="version">SNF UI v0.10</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -96,7 +95,7 @@
   </main>
 
   <!-- Add Client Modal -->
-  <div class="modal-backdrop" id="add-modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="modal-backdrop" id="add-modal-backdrop" role="dialog" aria-modal="true">
     <div class="modal" role="document">
       <header>
         <div class="brand">Add Client</div>
@@ -133,7 +132,7 @@
                 <input class="input" id="ref-search" placeholder="e.g., Smith, Jane  or  jane@company.com" />
                 <div class="ac-list" id="ref-list"></div>
               </div>
-              <!-- Canonical FK and also pass referrer names -->
+              <!-- Hidden fields sent to Worker -->
               <input type="hidden" name="referred_by_id" id="ref-ghl-id" />
               <input type="hidden" name="referred_by_first_name" id="ref-first" />
               <input type="hidden" name="referred_by_last_name" id="ref-last" />
@@ -253,8 +252,8 @@
         refList.innerHTML = '';
         rows.forEach(r => {
           const div = document.createElement('div');
-          div.className = 'ac-item';
           const label = `${(r.last_name||'').trim()}, ${(r.first_name||'').trim()} — ${r.email||'no email'}`;
+          div.className = 'ac-item';
           div.textContent = label;
           div.onclick = () => {
             refGhlId.value = r.ghl_id || r.id || '';
@@ -323,14 +322,12 @@
       clientsTable.innerHTML = '';
       try {
         const url = new URL(CLIENTS_LIST_PATH, API_BASE_LIST);
-        console.debug('Fetching clients from:', url.toString());
         const res = await fetch(url.toString(), { headers: { 'Accept':'application/json' }});
         const text = await res.text();
         let data = null; try { data = JSON.parse(text); } catch {}
         if (!res.ok) throw new Error((data && (data.error || data.message)) || text || `HTTP ${res.status}`);
 
         const rows = (data && data.rows) || [];
-        console.debug('Clients rows:', rows);
         clientsStatus.textContent = rows.length ? `Loaded ${rows.length} client${rows.length===1?'':'s'}.` : 'No clients found.';
         if (!rows.length) return;
 
@@ -342,20 +339,20 @@
     }
 
     function renderClientsTable(rows){
-      // Preferred column order if present:
+      // Preferred columns (no IDs; referral names only)
       const preferred = [
-        'id','client_id',
         'first_name','last_name',
         'email','phone',
-        'referred_by_id','referred_by_first_name','referred_by_last_name',
+        'referred_by_first_name','referred_by_last_name',
         'created_at','updated_at'
       ];
+      // Always hide these
+      const HIDE = new Set(['id','client_id','referred_by_id']);
 
-      // Collect all keys
+      // Gather keys
       const keySet = new Set();
-      rows.forEach(r => Object.keys(r || {}).forEach(k => keySet.add(k)));
+      rows.forEach(r => Object.keys(r || {}).forEach(k => { if (!HIDE.has(k)) keySet.add(k); }));
 
-      // Build columns: preferred first (if present), then the rest alphabetically
       const allKeys = Array.from(keySet);
       const ordered = [
         ...preferred.filter(k => keySet.has(k)),
@@ -405,5 +402,3 @@
   </script>
 </body>
 </html>
-
-
