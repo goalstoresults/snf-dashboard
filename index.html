@@ -54,7 +54,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v1.3</div>
+    <div id="version">SNF UI v0.4</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -143,6 +143,9 @@
   </div>
 
   <script>
+    // ===== Config: absolute API base (Worker)
+    const API_BASE = 'https://snf-add-client.dennis-e64.workers.dev';
+
     // ===== Tabs
     const tabs = document.querySelectorAll('.tab');
     const panels = {
@@ -169,7 +172,7 @@
     modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalBackdrop.style.display === 'flex') closeModal(); });
 
-    // ===== Autocomplete (type-ahead for referred_by)
+    // ===== Autocomplete (optional)
     const refInput = document.getElementById('ref-search');
     const refList  = document.getElementById('ref-list');
     const refGhlId = document.getElementById('ref-ghl-id');
@@ -180,14 +183,12 @@
     const formMsg = document.getElementById('form-msg');
 
     let acTimer = null;
-
     refInput.addEventListener('input', () => {
       const q = refInput.value.trim();
       if (acTimer) clearTimeout(acTimer);
       if (q.length < 2) { refList.style.display='none'; return; }
       acTimer = setTimeout(async () => { await loadContactMatches(q); }, 250);
     });
-
     refPillX.addEventListener('click', clearReferrer);
     refSkip.addEventListener('click', clearReferrer);
 
@@ -200,74 +201,33 @@
     }
 
     async function loadContactMatches(q) {
-      refList.innerHTML = '<div class="ac-item muted">Searching…</div>';
+      // NOTE: search endpoint disabled for now; keep UI harmless
+      refList.innerHTML = '<div class="ac-item muted">Search API not enabled</div>';
       refList.style.display = 'block';
-      try {
-        const url = new URL('/snf-search-contacts', location.origin);
-        url.searchParams.set('q', q);
-        url.searchParams.set('limit', '10');
-
-        const res = await fetch(url, { method: 'GET' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || 'Search failed');
-
-        const rows = data?.rows || [];
-        if (!rows.length) {
-          refList.innerHTML = '<div class="ac-item muted">No matches</div>';
-          return;
-        }
-        // Sort Last, First
-        rows.sort((a,b) => {
-          const la = (a.last_name || '').toLowerCase();
-          const lb = (b.last_name || '').toLowerCase();
-          if (la !== lb) return la < lb ? -1 : 1;
-          const fa = (a.first_name || '').toLowerCase();
-          const fb = (b.first_name || '').toLowerCase();
-          return fa < fb ? -1 : (fa > fb ? 1 : 0);
-        });
-
-        refList.innerHTML = '';
-        rows.forEach(r => {
-          const div = document.createElement('div');
-          div.className = 'ac-item';
-          const label = `${(r.last_name||'').trim()}, ${(r.first_name||'').trim()} — ${r.email||'no email'}`;
-          div.textContent = label;
-          div.onclick = () => {
-            refGhlId.value = r.ghl_id; // hidden FK
-            refPillText.textContent = label;
-            refPill.style.display = 'inline-flex';
-            refList.style.display = 'none';
-            refInput.value = '';
-          };
-          refList.appendChild(div);
-        });
-      } catch (e) {
-        refList.innerHTML = '<div class="ac-item" style="color:var(--danger)">Error searching contacts</div>';
-      }
     }
 
-    // ===== Save Client
+    // ===== Save Client (absolute URL + resilient parsing)
     document.getElementById('btn-save').addEventListener('click', async () => {
       const form = document.getElementById('add-client-form');
       const fd = new FormData(form);
       const payload = Object.fromEntries(fd.entries());
 
-      // Basic validation
       const missing = ['first_name','last_name'].filter(k => !payload[k]?.trim());
-      if (missing.length) {
-        setMsg('Please fill in First Name and Last Name.', true);
-        return;
-      }
+      if (missing.length) return setMsg('Please fill in First Name and Last Name.', true);
 
       try {
         setMsg('Saving…');
-        const res = await fetch('/snf-add-client', {
+        const res = await fetch(`${API_BASE}/snf-add-client`, {
           method: 'POST',
-          headers: {'Content-Type':'application/json'},
+          headers: { 'Content-Type':'application/json', 'Accept':'application/json' },
           body: JSON.stringify(payload)
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || 'Save failed');
+        const txt = await res.text();
+        let data = null; try { data = JSON.parse(txt); } catch {}
+        if (!res.ok) {
+          const msg = (data && (data.error || data.message)) || (txt && txt.trim()) || `HTTP ${res.status}`;
+          throw new Error(msg);
+        }
         setMsg('Client added successfully!', false, true);
         setTimeout(() => { closeModal(); }, 600);
       } catch (e) {
