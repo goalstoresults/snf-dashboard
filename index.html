@@ -48,13 +48,21 @@
     #version{font-size:12px;color:var(--muted)}
     .error{color:var(--danger);font-size:12px;margin-top:6px}
     .success{color:var(--accent-2);font-size:12px;margin-top:6px}
+
+    /* Clients table */
+    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
+    table{width:100%;border-collapse:separate;border-spacing:0;background:#fff}
+    thead th{position:sticky;top:0;background:#f9fafb;border-bottom:1px solid var(--border);text-align:left;font-weight:600;padding:10px}
+    tbody td{border-top:1px solid var(--border);padding:10px;vertical-align:top;white-space:nowrap}
+    tbody tr:nth-child(even){background:#fcfcfd}
+    .empty{padding:10px;color:var(--muted)}
     @media (max-width:640px){ .toolbar{flex-direction:column;align-items:flex-start;gap:8px} }
   </style>
 </head>
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.6</div>
+    <div id="version">SNF UI v0.7</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -70,9 +78,17 @@
     <section class="panel" id="panel-clients">
       <div class="toolbar">
         <div><strong>Clients</strong> <span class="muted">— add and manage clients</span></div>
-        <button class="btn primary" id="btn-add-client">+ Add Client</button>
+        <div style="display:flex; gap:8px; align-items:center">
+          <button class="btn" id="btn-refresh-clients">Refresh</button>
+          <button class="btn primary" id="btn-add-client">+ Add Client</button>
+        </div>
       </div>
-      <div class="muted">Client list coming next. For now, use “Add Client”.</div>
+
+      <!-- Clients List -->
+      <div id="clients-status" class="muted" style="margin-bottom:8px">Loading clients…</div>
+      <div class="table-wrap" id="clients-table-wrap" style="display:none">
+        <table id="clients-table" aria-label="Clients"></table>
+      </div>
     </section>
 
     <!-- Placeholder Panels -->
@@ -121,6 +137,10 @@
               </div>
               <!-- canonical field the worker reads -->
               <input type="hidden" name="referred_by_id" id="ref-ghl-id" />
+              <!-- also pass first/last to worker -->
+              <input type="hidden" name="referred_by_first_name" id="ref-first" />
+              <input type="hidden" name="referred_by_last_name" id="ref-last" />
+
               <div id="ref-pill" style="margin-top:8px; display:none;" class="pill">
                 <span id="ref-pill-text"></span>
                 <span class="x" id="ref-pill-x">✕</span>
@@ -143,8 +163,10 @@
 
   <script>
     // ===== Config: absolute API bases (Workers)
-    const API_BASE_ADD    = 'https://snf-add-client.dennis-e64.workers.dev';
-    const API_BASE_SEARCH = 'https://snf-search-contacts.dennis-e64.workers.dev';
+    const API_BASE_ADD     = 'https://snf-add-client.dennis-e64.workers.dev';
+    const API_BASE_SEARCH  = 'https://snf-search-contacts.dennis-e64.workers.dev';
+    // If your list endpoint path differs, change here:
+    const CLIENTS_LIST_PATH = '/snf-list-clients';
 
     // ===== Tabs
     const tabs = document.querySelectorAll('.tab');
@@ -172,14 +194,16 @@
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalBackdrop.style.display === 'flex') closeModal(); });
 
     // ===== Referral search
-    const refInput = document.getElementById('ref-search');
-    const refList  = document.getElementById('ref-list');
-    const refGhlId = document.getElementById('ref-ghl-id');
-    const refPill  = document.getElementById('ref-pill');
-    const refPillText = document.getElementById('ref-pill-text');
-    const refPillX = document.getElementById('ref-pill-x');
-    const refSkip = document.getElementById('ref-skip');
-    const formMsg = document.getElementById('form-msg');
+    const refInput   = document.getElementById('ref-search');
+    const refList    = document.getElementById('ref-list');
+    const refGhlId   = document.getElementById('ref-ghl-id');
+    const refFirst   = document.getElementById('ref-first');
+    const refLast    = document.getElementById('ref-last');
+    const refPill    = document.getElementById('ref-pill');
+    const refPillText= document.getElementById('ref-pill-text');
+    const refPillX   = document.getElementById('ref-pill-x');
+    const refSkip    = document.getElementById('ref-skip');
+    const formMsg    = document.getElementById('form-msg');
 
     let acTimer = null;
     refInput.addEventListener('input', () => {
@@ -194,6 +218,8 @@
 
     function clearReferrer(){
       refGhlId.value = '';
+      refFirst.value = '';
+      refLast.value = '';
       refPill.style.display = 'none';
       refList.style.display = 'none';
       refInput.value = '';
@@ -218,7 +244,6 @@
           refList.innerHTML = '<div class="ac-item muted">No matches</div>';
           return;
         }
-        // Sort Last, First
         rows.sort((a,b) => {
           const la = (a.last_name || '').toLowerCase();
           const lb = (b.last_name || '').toLowerCase();
@@ -235,7 +260,9 @@
           const label = `${(r.last_name||'').trim()}, ${(r.first_name||'').trim()} — ${r.email||'no email'}`;
           div.textContent = label;
           div.onclick = () => {
-            refGhlId.value = r.ghl_id; // hidden FK
+            refGhlId.value = r.ghl_id || r.id || '';
+            refFirst.value = r.first_name || '';
+            refLast.value  = r.last_name || '';
             refPillText.textContent = label;
             refPill.style.display = 'inline-flex';
             refList.style.display = 'none';
@@ -271,7 +298,8 @@
           throw new Error(msg);
         }
         setMsg('Client added successfully!', false, true);
-        setTimeout(() => { closeModal(); }, 600);
+        // Refresh clients after a short tick
+        setTimeout(() => { closeModal(); loadClients(); }, 600);
       } catch (e) {
         setMsg(e.message || 'Save failed', true);
       }
@@ -286,6 +314,97 @@
       clearReferrer();
       setMsg('', false);
     }
+
+    // ===== Clients list
+    const clientsStatus = document.getElementById('clients-status');
+    const clientsTableWrap = document.getElementById('clients-table-wrap');
+    const clientsTable = document.getElementById('clients-table');
+    document.getElementById('btn-refresh-clients').addEventListener('click', loadClients);
+
+    async function loadClients(){
+      clientsStatus.textContent = 'Loading clients…';
+      clientsTableWrap.style.display = 'none';
+      clientsTable.innerHTML = '';
+      try {
+        const url = new URL(CLIENTS_LIST_PATH, API_BASE_ADD);
+        const res = await fetch(url.toString(), { headers: { 'Accept':'application/json' }});
+        const text = await res.text();
+        let data = null; try { data = JSON.parse(text); } catch {}
+        if (!res.ok) throw new Error((data && (data.error || data.message)) || text || `HTTP ${res.status}`);
+
+        const rows = (data && data.rows) || [];
+        clientsStatus.textContent = rows.length ? `Loaded ${rows.length} client${rows.length===1?'':'s'}.` : 'No clients found.';
+        if (!rows.length) return;
+
+        renderClientsTable(rows);
+        clientsTableWrap.style.display = '';
+      } catch (err){
+        clientsStatus.textContent = `Error loading clients: ${err.message}`;
+      }
+    }
+
+    function renderClientsTable(rows){
+      // Preferred column order if present:
+      const preferred = [
+        'id','client_id',
+        'first_name','last_name',
+        'email','phone',
+        'referred_by_id','referred_by_first_name','referred_by_last_name',
+        'created_at','updated_at'
+      ];
+
+      // Collect all keys
+      const keySet = new Set();
+      rows.forEach(r => Object.keys(r || {}).forEach(k => keySet.add(k)));
+
+      // Build columns: preferred first (if present), then the rest alphabetically
+      const allKeys = Array.from(keySet);
+      const ordered = [
+        ...preferred.filter(k => keySet.has(k)),
+        ...allKeys.filter(k => !preferred.includes(k)).sort((a,b)=> a.localeCompare(b))
+      ];
+
+      // Build table
+      const thead = document.createElement('thead');
+      const trh = document.createElement('tr');
+      ordered.forEach(k => {
+        const th = document.createElement('th');
+        th.textContent = prettifyHeader(k);
+        trh.appendChild(th);
+      });
+      thead.appendChild(trh);
+
+      const tbody = document.createElement('tbody');
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        ordered.forEach(k => {
+          const td = document.createElement('td');
+          let v = r[k];
+          if (v === null || v === undefined) v = '';
+          if (Array.isArray(v)) v = v.join(', ');
+          if (typeof v === 'object' && v) v = JSON.stringify(v);
+          td.textContent = String(v);
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      clientsTable.innerHTML = '';
+      clientsTable.appendChild(thead);
+      clientsTable.appendChild(tbody);
+    }
+
+    function prettifyHeader(k){
+      return k
+        .replace(/_/g,' ')
+        .replace(/\b(id)\b/i, 'ID')
+        .replace(/\b(ghl)\b/i, 'GHL')
+        .replace(/\b([a-z])/g, (m)=>m.toUpperCase());
+    }
+
+    // Initial load
+    loadClients();
   </script>
 </body>
 </html>
+
