@@ -62,12 +62,11 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.7</div>
+    <div id="version">SNF UI v0.9</div>
   </header>
 
   <div class="tabs" id="tabs">
     <div class="tab active" data-tab="clients">Clients</div>
-    <!-- Contacts tab removed -->
     <div class="tab" data-tab="payments">Payments</div>
     <div class="tab" data-tab="groups">Groups</div>
     <div class="tab" data-tab="roi">Group ROI</div>
@@ -84,7 +83,6 @@
         </div>
       </div>
 
-      <!-- Clients List -->
       <div id="clients-status" class="muted" style="margin-bottom:8px">Loading clients…</div>
       <div class="table-wrap" id="clients-table-wrap" style="display:none">
         <table id="clients-table" aria-label="Clients"></table>
@@ -135,9 +133,8 @@
                 <input class="input" id="ref-search" placeholder="e.g., Smith, Jane  or  jane@company.com" />
                 <div class="ac-list" id="ref-list"></div>
               </div>
-              <!-- canonical field the worker reads -->
+              <!-- Canonical FK and also pass referrer names -->
               <input type="hidden" name="referred_by_id" id="ref-ghl-id" />
-              <!-- also pass first/last to worker -->
               <input type="hidden" name="referred_by_first_name" id="ref-first" />
               <input type="hidden" name="referred_by_last_name" id="ref-last" />
 
@@ -162,13 +159,13 @@
   </div>
 
   <script>
-    // ===== Config: absolute API bases (Workers)
+    // ===== Config: Worker base URLs =====
     const API_BASE_ADD     = 'https://snf-add-client.dennis-e64.workers.dev';
     const API_BASE_SEARCH  = 'https://snf-search-contacts.dennis-e64.workers.dev';
-    // If your list endpoint path differs, change here:
-    const CLIENTS_LIST_PATH = '/snf-list-clients';
+    const API_BASE_LIST    = 'https://snf-list-clients.dennis-e64.workers.dev';
+    const CLIENTS_LIST_PATH = '/';
 
-    // ===== Tabs
+    // ===== Tabs =====
     const tabs = document.querySelectorAll('.tab');
     const panels = {
       clients: document.getElementById('panel-clients'),
@@ -183,7 +180,7 @@
       panels[t.dataset.tab].style.display = '';
     }));
 
-    // ===== Modal helpers
+    // ===== Modal helpers =====
     const modalBackdrop = document.getElementById('add-modal-backdrop');
     const openModal = () => { modalBackdrop.style.display='flex'; modalBackdrop.setAttribute('aria-hidden','false'); };
     const closeModal = () => { modalBackdrop.style.display='none'; modalBackdrop.setAttribute('aria-hidden','true'); resetForm(); };
@@ -193,7 +190,7 @@
     modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalBackdrop.style.display === 'flex') closeModal(); });
 
-    // ===== Referral search
+    // ===== Referral search =====
     const refInput   = document.getElementById('ref-search');
     const refList    = document.getElementById('ref-list');
     const refGhlId   = document.getElementById('ref-ghl-id');
@@ -275,7 +272,7 @@
       }
     }
 
-    // ===== Save Client
+    // ===== Save Client =====
     document.getElementById('btn-save').addEventListener('click', async () => {
       const form = document.getElementById('add-client-form');
       const fd = new FormData(form);
@@ -298,7 +295,6 @@
           throw new Error(msg);
         }
         setMsg('Client added successfully!', false, true);
-        // Refresh clients after a short tick
         setTimeout(() => { closeModal(); loadClients(); }, 600);
       } catch (e) {
         setMsg(e.message || 'Save failed', true);
@@ -315,7 +311,7 @@
       setMsg('', false);
     }
 
-    // ===== Clients list
+    // ===== Clients list =====
     const clientsStatus = document.getElementById('clients-status');
     const clientsTableWrap = document.getElementById('clients-table-wrap');
     const clientsTable = document.getElementById('clients-table');
@@ -326,13 +322,15 @@
       clientsTableWrap.style.display = 'none';
       clientsTable.innerHTML = '';
       try {
-        const url = new URL(CLIENTS_LIST_PATH, API_BASE_ADD);
+        const url = new URL(CLIENTS_LIST_PATH, API_BASE_LIST);
+        console.debug('Fetching clients from:', url.toString());
         const res = await fetch(url.toString(), { headers: { 'Accept':'application/json' }});
         const text = await res.text();
         let data = null; try { data = JSON.parse(text); } catch {}
         if (!res.ok) throw new Error((data && (data.error || data.message)) || text || `HTTP ${res.status}`);
 
         const rows = (data && data.rows) || [];
+        console.debug('Clients rows:', rows);
         clientsStatus.textContent = rows.length ? `Loaded ${rows.length} client${rows.length===1?'':'s'}.` : 'No clients found.';
         if (!rows.length) return;
 
@@ -407,4 +405,5 @@
   </script>
 </body>
 </html>
+
 
