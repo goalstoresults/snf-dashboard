@@ -55,6 +55,12 @@
     tbody td{border-top:1px solid var(--border);padding:10px;vertical-align:top;white-space:nowrap}
     tbody tr:nth-child(even){background:#fcfcfd}
     .empty{padding:10px;color:var(--muted)}
+    /* Sortable headers */
+    th.sortable { cursor:pointer; user-select:none; }
+    th.sortable .hdr { display:flex; align-items:center; gap:6px; }
+    th.sortable .arrow { font-size:11px; color:var(--muted); }
+    th.sortable.active { color:var(--text); }
+    th.sortable.active .arrow { color:var(--text); }
     @media (max-width:640px){ .toolbar{flex-direction:column;align-items:flex-start;gap:8px} }
   </style>
 </head>
@@ -135,11 +141,11 @@
         <table id="groups-table" aria-label="Groups">
           <thead>
             <tr>
-              <th>Group Name</th>
-              <th>Total Amount</th>
-              <th>Total Referral Amount</th>
-              <th>Total ROI</th>
-              <th>Date Started</th>
+              <th class="sortable" data-col="group_name"><span class="hdr">Group Name <span class="arrow">▲▼</span></span></th>
+              <th class="sortable" data-col="total_amount"><span class="hdr">Total Amount <span class="arrow">▲▼</span></span></th>
+              <th class="sortable" data-col="total_referral_amount"><span class="hdr">Total Referral Amount <span class="arrow">▲▼</span></span></th>
+              <th class="sortable" data-col="total_roi"><span class="hdr">Total ROI <span class="arrow">▲▼</span></span></th>
+              <th class="sortable" data-col="date_started"><span class="hdr">Date Started <span class="arrow">▲▼</span></span></th>
             </tr>
           </thead>
           <tbody id="groups-tbody">
@@ -472,6 +478,9 @@
     const grpAmount = document.getElementById('grp-amount');
     const grpMsg    = document.getElementById('group-form-msg');
 
+    let groupsData = []; // cache
+    let groupSort = { col: 'group_name', dir: 'asc' }; // default
+
     function setAddGroupButtonState(open){
       const btn = btnToggleAddGroup;
       btn.setAttribute('aria-pressed', open ? 'true' : 'false');
@@ -519,7 +528,12 @@
     async function loadGroups(){
       groupsTbody.innerHTML = `<tr><td class="empty" colspan="5">Loading…</td></tr>`;
       try{
-        const r = await fetch(GROUPS_LIST_URL, { method:'GET', headers:{Accept:'application/json'}, cache:'no-store', mode:'cors' });
+        const r = await fetch(GROUPS_LIST_URL, {
+          method:'GET',
+          headers:{Accept:'application/json'},
+          cache:'no-store',
+          mode:'cors'
+        });
         const raw = await r.text();
         let d = null; try { d = JSON.parse(raw); } catch {}
 
@@ -530,11 +544,37 @@
           return;
         }
 
-        const rows = Array.isArray(d?.rows) ? d.rows : [];
-        if (!rows.length){
-          groupsTbody.innerHTML = `<tr><td class="empty" colspan="5">No groups found.</td></tr>`;
-          return;
-        }
+        groupsData = Array.isArray(d?.rows) ? d.rows : [];
+        renderGroupsTable();
+        wireGroupHeaderClicks();
+      }catch(e){
+        groupsTbody.innerHTML = `<tr><td class="empty" colspan="5" style="color:var(--danger)">Error: ${esc(e.message||String(e))}</td></tr>`;
+        console.error('GROUPS LIST EXCEPTION', e);
+      }
+    }
+
+    function wireGroupHeaderClicks(){
+      const ths = document.querySelectorAll('#groups-table thead th.sortable');
+      ths.forEach(th => {
+        th.onclick = () => {
+          const col = th.getAttribute('data-col');
+          if (!col) return;
+          if (groupSort.col === col) {
+            groupSort.dir = (groupSort.dir === 'asc') ? 'desc' : 'asc';
+          } else {
+            groupSort.col = col;
+            groupSort.dir = 'asc';
+          }
+          renderGroupsTable();
+        };
+      });
+    }
+
+    function renderGroupsTable(){
+      const rows = [...groupsData].sort((a,b) => compareGroupRows(a,b, groupSort.col, groupSort.dir));
+      if (!rows.length){
+        groupsTbody.innerHTML = `<tr><td class="empty" colspan="5">No groups found.</td></tr>`;
+      } else {
         groupsTbody.innerHTML = rows.map(g => `
           <tr>
             <td>${esc(g.group_name||'')}</td>
@@ -544,73 +584,110 @@
             <td>${esc(g.date_started||'')}</td>
           </tr>
         `).join('');
+      }
+      updateGroupHeaderArrows();
+    }
+
+    function updateGroupHeaderArrows(){
+      const ths = document.querySelectorAll('#groups-table thead th.sortable');
+      ths.forEach(th => {
+        const col = th.getAttribute('data-col');
+        const arrow = th.querySelector('.arrow');
+        th.classList.toggle('active', col === groupSort.col);
+        if (arrow) {
+          if (col === groupSort.col) {
+            arrow.textContent = groupSort.dir === 'asc' ? '▲' : '▼';
+          } else {
+            arrow.textContent = '▲▼';
+          }
+        }
+      });
+    }
+
+    function compareGroupRows(a, b, col, dir){
+      const mul = dir === 'desc' ? -1 : 1;
+      const va = (a?.[col]);
+      const vb = (b?.[col]);
+
+      if (['total_amount','total_referral_amount','total_roi'].includes(col)) {
+        const na = Number(va) || 0;
+        const nb = Number(vb) || 0;
+        return (na < nb ? -1 : na > nb ? 1 : 0) * mul;
+      }
+
+      if (col === 'date_started') {
+        const sa = (typeof va === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(va)) ? va : '';
+        const sb = (typeof vb === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(vb)) ? vb : '';
+        if (sa === sb) return 0;
+        return (sa < sb ? -1 : 1) * mul; // ISO date lexical compare
+      }
+
+      const sa = (va ?? '').toString().toLowerCase();
+      const sb = (vb ?? '').toString().toLowerCase();
+      if (sa === sb) return 0;
+      return (sa < sb ? -1 : 1) * mul;
+    }
+
+    async function submitAddGroup(){
+      grpMsg.className='muted';
+      grpMsg.textContent='Saving…';
+
+      const payload = {
+        year: Number(grpYear.value),
+        group_name: (grpName.value||'').trim(),
+        date_started: grpDate.value || null,
+        total_amount: grpAmount.value === '' ? 0 : Number(grpAmount.value)
+      };
+
+      if(!payload.group_name){ grpMsg.className='error'; grpMsg.textContent='Please enter a Group Name.'; return; }
+      if(!Number.isInteger(payload.year)){ grpMsg.className='error'; grpMsg.textContent='Select a valid Year.'; return; }
+      if(payload.date_started && !/^\d{4}-\d{2}-\d{2}$/.test(payload.date_started)){
+        grpMsg.className='error'; grpMsg.textContent='Date must be YYYY-MM-DD.'; return;
+      }
+      if(!Number.isFinite(payload.total_amount)){
+        grpMsg.className='error'; grpMsg.textContent='Total Amount must be numeric.'; return;
+      }
+
+      try{
+        const r = await fetch(GROUPS_ADD_URL, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
+          body: JSON.stringify(payload),
+          cache:'no-store',
+          mode:'cors'
+        });
+
+        const raw = await r.text();
+        let d = null; try { d = JSON.parse(raw); } catch {}
+
+        if (!r.ok || !d?.ok) {
+          const msg = (d?.error || d?.detail || d?.message || raw || `HTTP ${r.status}`);
+          grpMsg.className='error';
+          grpMsg.innerHTML = `Save failed: ${esc(msg)}<br><span class="muted">Check console for payload/response debug.</span>`;
+          console.error('GROUPS ADD ERROR', {
+            status: r.status,
+            requestPayload: payload,
+            responseRaw: raw,
+            responseJson: d
+          });
+          return;
+        }
+
+        grpMsg.className='success';
+        grpMsg.textContent='Saved!';
+        console.debug('GROUPS ADD OK', { requestPayload: payload, responseJson: d });
+
+        await loadGroups();
+        // Close form and return focus to Add button for rapid entry
+        showGroupForm(false);
+        document.getElementById('btn-toggle-add-group')?.focus();
+
       }catch(e){
-        groupsTbody.innerHTML = `<tr><td class="empty" colspan="5" style="color:var(--danger)">Error: ${esc(e.message||String(e))}</td></tr>`;
-        console.error('GROUPS LIST EXCEPTION', e);
+        grpMsg.className='error';
+        grpMsg.innerHTML = `Network/JS error: ${esc(e.message||String(e))}<br><span class="muted">See console for details.</span>`;
+        console.error('GROUPS ADD EXCEPTION', e, { requestPayload: payload });
       }
     }
-
-async function submitAddGroup(){
-  grpMsg.className='muted';
-  grpMsg.textContent='Saving…';
-
-  const payload = {
-    year: Number(grpYear.value),
-    group_name: (grpName.value||'').trim(),
-    date_started: grpDate.value || null,
-    total_amount: grpAmount.value === '' ? 0 : Number(grpAmount.value)
-  };
-
-  if(!payload.group_name){ grpMsg.className='error'; grpMsg.textContent='Please enter a Group Name.'; return; }
-  if(!Number.isInteger(payload.year)){ grpMsg.className='error'; grpMsg.textContent='Select a valid Year.'; return; }
-  if(payload.date_started && !/^\d{4}-\d{2}-\d{2}$/.test(payload.date_started)){
-    grpMsg.className='error'; grpMsg.textContent='Date must be YYYY-MM-DD.'; return;
-  }
-  if(!Number.isFinite(payload.total_amount)){
-    grpMsg.className='error'; grpMsg.textContent='Total Amount must be numeric.'; return;
-  }
-
-  try{
-    const r = await fetch(GROUPS_ADD_URL, {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
-      body: JSON.stringify(payload),
-      cache:'no-store',
-      mode:'cors'
-    });
-
-    const raw = await r.text();
-    let d = null; try { d = JSON.parse(raw); } catch {}
-
-    if (!r.ok || !d?.ok) {
-      const msg = (d?.error || d?.detail || d?.message || raw || `HTTP ${r.status}`);
-      grpMsg.className='error';
-      grpMsg.innerHTML = `Save failed: ${esc(msg)}<br><span class="muted">Check console for payload/response debug.</span>`;
-      console.error('GROUPS ADD ERROR', {
-        status: r.status,
-        requestPayload: payload,
-        responseRaw: raw,
-        responseJson: d
-      });
-      return;
-    }
-
-    grpMsg.className='success';
-    grpMsg.textContent='Saved!';
-    console.debug('GROUPS ADD OK', { requestPayload: payload, responseJson: d });
-
-    await loadGroups();
-    // NEW: close the form and put focus back on the Add button
-    showGroupForm(false);
-    document.getElementById('btn-toggle-add-group')?.focus();
-
-  }catch(e){
-    grpMsg.className='error';
-    grpMsg.innerHTML = `Network/JS error: ${esc(e.message||String(e))}<br><span class="muted">See console for details.</span>`;
-    console.error('GROUPS ADD EXCEPTION', e, { requestPayload: payload });
-  }
-}
-
 
     function fmtMoney(v){
       if(v==null || v==='') return '';
