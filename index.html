@@ -37,17 +37,6 @@
     .modal header{border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
     .modal footer{display:flex;gap:10px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--border)}
     .modal .content{padding:16px}
-    /* Autocomplete */
-    .ac-wrap{position:relative}
-    .ac-list{position:absolute;z-index:40;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--border);
-      border-radius:10px;max-height:240px;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.08);display:none}
-    .ac-item{padding:10px 12px;cursor:pointer}
-    .ac-item:hover{background:#f4f6fb}
-    .pill{display:inline-flex;align-items:center;gap:6px;background:#f1f5ff;color:#1e3a8a;border-radius:999px;padding:6px 10px;font-size:12px}
-    .pill .x{cursor:pointer}
-    #version{font-size:12px;color:var(--muted)}
-    .error{color:var(--danger);font-size:12px;margin-top:6px}
-    .success{color:var(--accent-2);font-size:12px;margin-top:6px}
     /* Tables */
     .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
     table{width:100%;border-collapse:separate;border-spacing:0;background:#fff}
@@ -55,7 +44,7 @@
     tbody td{border-top:1px solid var(--border);padding:10px;vertical-align:top;white-space:nowrap}
     tbody tr:nth-child(even){background:#fcfcfd}
     .empty{padding:10px;color:var(--muted)}
-    /* Sortable headers */
+    /* Sortable headers (Groups tab) */
     th.sortable { cursor:pointer; user-select:none; }
     th.sortable .hdr { display:flex; align-items:center; gap:6px; }
     th.sortable .arrow { font-size:11px; color:var(--muted); }
@@ -67,7 +56,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.16</div>
+    <div id="version">SNF UI v0.17</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -155,9 +144,47 @@
       </div>
     </section>
 
-    <!-- Group ROI (placeholder) -->
+    <!-- Group ROI Panel -->
     <section class="panel" id="panel-roi" style="display:none">
-      <div class="muted">Group ROI tab placeholder.</div>
+      <div class="toolbar">
+        <div><strong>Group ROI</strong> <span class="muted">— filter by Group and Year</span></div>
+        <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap">
+          <div class="grow">
+            <div class="label">Group Name</div>
+            <select class="input" id="roi-filter-group">
+              <option value="ALL">ALL</option>
+            </select>
+          </div>
+          <div class="grow">
+            <div class="label">Year</div>
+            <select class="input" id="roi-filter-year">
+              <option value="ALL">ALL</option>
+            </select>
+          </div>
+          <div style="padding-top:20px">
+            <button class="btn primary" id="btn-load-roi">Load</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="roi-status" class="muted" style="margin-bottom:8px">Loading ROI…</div>
+      <div class="table-wrap">
+        <table id="roi-table" aria-label="Group ROI">
+          <thead>
+            <tr>
+              <th>Group Name</th>
+              <th>Year</th>
+              <th>Renewal Date</th>
+              <th>Renewal Amount</th>
+              <th>Referral Amount</th>
+              <th>ROI</th>
+            </tr>
+          </thead>
+          <tbody id="roi-tbody">
+            <tr><td class="empty" colspan="6">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
   </main>
 
@@ -235,6 +262,9 @@
     const GROUPS_LIST_URL  = 'https://snf-list-groups.dennis-e64.workers.dev';
     const GROUPS_ADD_URL   = 'https://snf-add-group.dennis-e64.workers.dev';
 
+    // Group ROI endpoint (list)
+    const ROI_LIST_URL     = 'https://snf-list-group-roi.dennis-e64.workers.dev';
+
     // ===== Tabs =====
     const tabs = document.querySelectorAll('.tab');
     const panels = {
@@ -251,6 +281,7 @@
       panels[which].style.display = '';
       if (which === 'clients') loadClients();
       if (which === 'groups')  loadGroups();
+      if (which === 'roi')     initAndLoadROI();
     }));
 
     // ===== Modal helpers (Clients) =====
@@ -689,6 +720,110 @@
       }
     }
 
+    // ===== Group ROI logic =====
+    const roiStatus = document.getElementById('roi-status');
+    const roiTbody  = document.getElementById('roi-tbody');
+    const roiFilterGroup = document.getElementById('roi-filter-group');
+    const roiFilterYear  = document.getElementById('roi-filter-year');
+    const btnLoadRoi     = document.getElementById('btn-load-roi');
+
+    let roiAllRows = []; // raw cache
+
+    async function initAndLoadROI(){
+      // If already loaded once, just refresh table with current filters
+      if (roiAllRows.length) {
+        populateRoiFiltersFromRows(roiAllRows);
+        renderRoiTable();
+        return;
+      }
+      await fetchRoiRows();
+    }
+
+    async function fetchRoiRows(){
+      roiStatus.textContent = 'Loading ROI…';
+      roiTbody.innerHTML = `<tr><td class="empty" colspan="6">Loading…</td></tr>`;
+      try{
+        const r = await fetch(ROI_LIST_URL, {
+          method:'GET',
+          headers:{Accept:'application/json'},
+          cache:'no-store',
+          mode:'cors'
+        });
+        const raw = await r.text();
+        let d = null; try { d = JSON.parse(raw); } catch {}
+
+        if (!r.ok) {
+          const msg = d?.error || d?.message || raw || `HTTP ${r.status}`;
+          roiStatus.textContent = `Error: ${msg}`;
+          roiTbody.innerHTML = `<tr><td class="empty" colspan="6" style="color:var(--danger)">Error: ${esc(msg)}</td></tr>`;
+          console.error('ROI LIST ERROR', { status:r.status, raw, json:d });
+          return;
+        }
+
+        roiAllRows = Array.isArray(d?.rows) ? d.rows : [];
+        populateRoiFiltersFromRows(roiAllRows);
+        renderRoiTable();
+      }catch(e){
+        roiStatus.textContent = `Error: ${e.message||String(e)}`;
+        roiTbody.innerHTML = `<tr><td class="empty" colspan="6" style="color:var(--danger)">Error: ${esc(e.message||String(e))}</td></tr>`;
+        console.error('ROI LIST EXCEPTION', e);
+      }
+    }
+
+    function populateRoiFiltersFromRows(rows){
+      // group_name
+      const groups = Array.from(new Set(rows.map(r => (r.group_name||'').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+      const years  = Array.from(new Set(rows.map(r => r.year).filter(v => v !== null && v !== undefined))).sort((a,b)=>Number(a)-Number(b));
+
+      // Reset options (keep ALL at top)
+      roiFilterGroup.innerHTML = '<option value="ALL">ALL</option>';
+      groups.forEach(g => {
+        const o=document.createElement('option'); o.value=g; o.textContent=g; roiFilterGroup.appendChild(o);
+      });
+
+      roiFilterYear.innerHTML = '<option value="ALL">ALL</option>';
+      years.forEach(y => {
+        const o=document.createElement('option'); o.value=String(y); o.textContent=String(y); roiFilterYear.appendChild(o);
+      });
+
+      // Keep defaults to ALL
+      roiFilterGroup.value = 'ALL';
+      roiFilterYear.value  = 'ALL';
+    }
+
+    function renderRoiTable(){
+      const selGroup = roiFilterGroup.value;
+      const selYear  = roiFilterYear.value;
+
+      const filtered = roiAllRows.filter(r => {
+        const okGroup = (selGroup === 'ALL') || ((r.group_name||'') === selGroup);
+        const okYear  = (selYear === 'ALL')  || (String(r.year) === String(selYear));
+        return okGroup && okYear;
+      });
+
+      roiStatus.textContent = filtered.length ? `Loaded ${filtered.length} record${filtered.length===1?'':'s'}.` : 'No records found.';
+      if (!filtered.length) {
+        roiTbody.innerHTML = `<tr><td class="empty" colspan="6">No records found.</td></tr>`;
+        return;
+      }
+
+      roiTbody.innerHTML = filtered.map(r => `
+        <tr>
+          <td>${esc(r.group_name||'')}</td>
+          <td>${esc(r.year ?? '')}</td>
+          <td>${esc(r.renewal_date||'')}</td>
+          <td>${fmtMoneyUSD(r.renewal_amount)}</td>
+          <td>${fmtMoneyUSD(r.referral_amount)}</td>
+          <td>${fmtPercent(r.roi)}</td>
+        </tr>
+      `).join('');
+    }
+
+    btnLoadRoi.addEventListener('click', () => {
+      // If you later add server-side filtering, you can refetch here with query params.
+      renderRoiTable();
+    });
+
     // ---- formatters ----
     const usdFmt = new Intl.NumberFormat('en-US', { style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2 });
     function fmtMoneyUSD(v){
@@ -702,15 +837,19 @@
       const n = Number(v);
       if(!Number.isFinite(n)) return '';
       // Accept either 0–1 (fraction) or 0–100 (percent). If >1, assume already a percent.
-      if (Math.abs(n) <= 1) return pctIntl.format(n);       // e.g. 0.125 -> 12.50%
-      return `${n.toFixed(2)}%`;                            // e.g. 12.5 -> 12.50%
+      if (Math.abs(n) <= 1) return pctIntl.format(n);  // 0.125 -> 12.50%
+      return `${n.toFixed(2)}%`;                       // 12.5 -> 12.50%
     }
     function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
     // ===== Init =====
     document.getElementById('btn-refresh-clients').addEventListener('click', loadClients);
-    loadClients();            // Start with Clients
-    showGroupForm(false);     // Ensure Groups form starts closed
+    document.getElementById('btn-refresh-groups').addEventListener('click', loadGroups);
+    document.getElementById('btn-save-group'); // wired above
+    // Start on Clients
+    loadClients();
+    // Ensure Groups form starts closed & button text is correct
+    showGroupForm(false);
   </script>
 </body>
 </html>
