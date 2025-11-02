@@ -48,7 +48,7 @@
     #version{font-size:12px;color:var(--muted)}
     .error{color:var(--danger);font-size:12px;margin-top:6px}
     .success{color:var(--accent-2);font-size:12px;margin-top:6px}
-    /* Clients table */
+    /* Tables */
     .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
     table{width:100%;border-collapse:separate;border-spacing:0;background:#fff}
     thead th{position:sticky;top:0;background:#f9fafb;border-bottom:1px solid var(--border);text-align:left;font-weight:600;padding:10px}
@@ -61,7 +61,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.10</div>
+    <div id="version">SNF UI v0.11</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -88,10 +88,71 @@
       </div>
     </section>
 
-    <!-- Placeholder Panels -->
-    <section class="panel" id="panel-payments" style="display:none"><div class="muted">Payments tab placeholder.</div></section>
-    <section class="panel" id="panel-groups" style="display:none"><div class="muted">Groups tab placeholder.</div></section>
-    <section class="panel" id="panel-roi" style="display:none"><div class="muted">Group ROI tab placeholder.</div></section>
+    <!-- Payments (placeholder) -->
+    <section class="panel" id="panel-payments" style="display:none">
+      <div class="muted">Payments tab placeholder.</div>
+    </section>
+
+    <!-- Groups Panel -->
+    <section class="panel" id="panel-groups" style="display:none">
+      <div class="toolbar">
+        <div><strong>Groups</strong> <span class="muted">— list and add groups</span></div>
+        <div style="display:flex; gap:8px; align-items:center">
+          <button class="btn" id="btn-refresh-groups">Refresh</button>
+          <button class="btn primary" id="btn-add-group">+ Add Group</button>
+        </div>
+      </div>
+
+      <!-- Add Group inline form -->
+      <div id="group-form-wrap" style="display:none; margin-bottom:12px;">
+        <div class="row">
+          <div class="grow">
+            <div class="label">Year</div>
+            <select class="input" id="grp-year"></select>
+          </div>
+          <div class="grow">
+            <div class="label">Group Name</div>
+            <input class="input" id="grp-name" placeholder="e.g., Spring 2025" />
+          </div>
+          <div class="grow">
+            <div class="label">Date Started</div>
+            <input class="input" id="grp-date" type="date" />
+          </div>
+          <div class="grow">
+            <div class="label">Total Amount</div>
+            <input class="input" id="grp-amount" type="number" step="0.01" placeholder="0.00" />
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px; justify-content:flex-end;">
+          <button class="btn" id="btn-cancel-group">Cancel</button>
+          <button class="btn primary" id="btn-save-group">Save Group</button>
+        </div>
+        <div id="group-form-msg" class="muted" style="margin-top:8px;"></div>
+        <hr style="margin:16px 0;border:none;border-top:1px solid var(--border);" />
+      </div>
+
+      <div class="table-wrap">
+        <table id="groups-table" aria-label="Groups">
+          <thead>
+            <tr>
+              <th>Group Name</th>
+              <th>Total Amount</th>
+              <th>Total Referral Amount</th>
+              <th>Total ROI</th>
+              <th>Date Started</th>
+            </tr>
+          </thead>
+          <tbody id="groups-tbody">
+            <tr><td class="empty" colspan="5">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Group ROI (placeholder) -->
+    <section class="panel" id="panel-roi" style="display:none">
+      <div class="muted">Group ROI tab placeholder.</div>
+    </section>
   </main>
 
   <!-- Add Client Modal -->
@@ -164,6 +225,10 @@
     const API_BASE_LIST    = 'https://snf-list-clients.dennis-e64.workers.dev';
     const CLIENTS_LIST_PATH = '/';
 
+    // Groups endpoints
+    const GROUPS_LIST_URL  = 'https://snf-list-groups.dennis-e64.workers.dev';
+    const GROUPS_ADD_URL   = 'https://snf-add-group.dennis-e64.workers.dev';
+
     // ===== Tabs =====
     const tabs = document.querySelectorAll('.tab');
     const panels = {
@@ -176,10 +241,13 @@
       tabs.forEach(x => x.classList.remove('active'));
       t.classList.add('active');
       Object.values(panels).forEach(p => p.style.display='none');
-      panels[t.dataset.tab].style.display = '';
+      const which = t.dataset.tab;
+      panels[which].style.display = '';
+      if (which === 'clients') loadClients();
+      if (which === 'groups')  loadGroups();
     }));
 
-    // ===== Modal helpers =====
+    // ===== Modal helpers (Clients) =====
     const modalBackdrop = document.getElementById('add-modal-backdrop');
     const openModal = () => { modalBackdrop.style.display='flex'; modalBackdrop.setAttribute('aria-hidden','false'); };
     const closeModal = () => { modalBackdrop.style.display='none'; modalBackdrop.setAttribute('aria-hidden','true'); resetForm(); };
@@ -189,7 +257,7 @@
     modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalBackdrop.style.display === 'flex') closeModal(); });
 
-    // ===== Referral search =====
+    // ===== Referral search (Clients) =====
     const refInput   = document.getElementById('ref-search');
     const refList    = document.getElementById('ref-list');
     const refGhlId   = document.getElementById('ref-ghl-id');
@@ -339,17 +407,14 @@
     }
 
     function renderClientsTable(rows){
-      // Preferred columns (no IDs; referral names only)
       const preferred = [
         'first_name','last_name',
         'email','phone',
         'referred_by_first_name','referred_by_last_name',
         'created_at','updated_at'
       ];
-      // Always hide these
       const HIDE = new Set(['id','client_id','referred_by_id']);
 
-      // Gather keys
       const keySet = new Set();
       rows.forEach(r => Object.keys(r || {}).forEach(k => { if (!HIDE.has(k)) keySet.add(k); }));
 
@@ -359,7 +424,6 @@
         ...allKeys.filter(k => !preferred.includes(k)).sort((a,b)=> a.localeCompare(b))
       ];
 
-      // Build table
       const thead = document.createElement('thead');
       const trh = document.createElement('tr');
       ordered.forEach(k => {
@@ -397,8 +461,106 @@
         .replace(/\b([a-z])/g, (m)=>m.toUpperCase());
     }
 
-    // Initial load
-    loadClients();
+    // ===== Groups logic =====
+    const groupsTbody = document.getElementById('groups-tbody');
+    const btnAddGroup = document.getElementById('btn-add-group');
+    const btnRefreshGroups = document.getElementById('btn-refresh-groups');
+    const grpFormWrap = document.getElementById('group-form-wrap');
+    const grpYear   = document.getElementById('grp-year');
+    const grpName   = document.getElementById('grp-name');
+    const grpDate   = document.getElementById('grp-date');
+    const grpAmount = document.getElementById('grp-amount');
+    const grpMsg    = document.getElementById('group-form-msg');
+
+    // Year dropdown 2025..2034
+    (function initYears(){
+      for(let y=2025; y<2025+10; y++){
+        const o=document.createElement('option');
+        o.value=y; o.textContent=y;
+        grpYear.appendChild(o);
+      }
+    })();
+
+    btnAddGroup.addEventListener('click', () => {
+      grpMsg.textContent = '';
+      grpFormWrap.style.display = grpFormWrap.style.display === 'none' ? 'block' : 'none';
+    });
+    document.getElementById('btn-cancel-group').addEventListener('click', () => {
+      grpFormWrap.style.display='none';
+      grpMsg.textContent='';
+      grpName.value=''; grpDate.value=''; grpAmount.value='';
+    });
+    document.getElementById('btn-save-group').addEventListener('click', submitAddGroup);
+    btnRefreshGroups.addEventListener('click', loadGroups);
+
+    async function loadGroups(){
+      groupsTbody.innerHTML = `<tr><td class="empty" colspan="5">Loading…</td></tr>`;
+      try{
+        const r = await fetch(GROUPS_LIST_URL, { method:'GET', headers:{Accept:'application/json'} });
+        const txt = await r.text();
+        let d=null; try{ d=JSON.parse(txt);}catch{}
+        if(!r.ok) throw new Error((d && (d.error||d.message)) || txt || `HTTP ${r.status}`);
+        const rows = (d && d.rows) || [];
+        if(!rows.length){
+          groupsTbody.innerHTML = `<tr><td class="empty" colspan="5">No groups found.</td></tr>`;
+          return;
+        }
+        groupsTbody.innerHTML = rows.map(g => `
+          <tr>
+            <td>${esc(g.group_name||'')}</td>
+            <td>${fmtMoney(g.total_amount)}</td>
+            <td>${fmtMoney(g.total_referral_amount)}</td>
+            <td>${fmtMoney(g.total_roi)}</td>
+            <td>${esc(g.date_started||'')}</td>
+          </tr>
+        `).join('');
+      }catch(e){
+        groupsTbody.innerHTML = `<tr><td class="empty" colspan="5" style="color:var(--danger)">Error: ${esc(e.message||String(e))}</td></tr>`;
+      }
+    }
+
+    async function submitAddGroup(){
+      grpMsg.className='muted';
+      grpMsg.textContent='Saving…';
+      const payload = {
+        year: Number(grpYear.value),
+        group_name: (grpName.value||'').trim(),
+        date_started: grpDate.value || null,
+        total_amount: grpAmount.value === '' ? 0 : Number(grpAmount.value)
+      };
+      if(!payload.group_name){ grpMsg.className='error'; grpMsg.textContent='Please enter a Group Name.'; return; }
+      if(!Number.isInteger(payload.year)){ grpMsg.className='error'; grpMsg.textContent='Select a valid Year.'; return; }
+      if(payload.date_started && !/^\d{4}-\d{2}-\d{2}$/.test(payload.date_started)){ grpMsg.className='error'; grpMsg.textContent='Date must be YYYY-MM-DD.'; return; }
+      if(!Number.isFinite(payload.total_amount)){ grpMsg.className='error'; grpMsg.textContent='Total Amount must be numeric.'; return; }
+
+      try{
+        const r = await fetch(GROUPS_ADD_URL, {
+          method:'POST',
+          headers:{'Content-Type':'application/json',Accept:'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const txt = await r.text();
+        let d=null; try{ d=JSON.parse(txt);}catch{}
+        if(!r.ok || !d?.ok) throw new Error((d && (d.error||d.detail||d.message)) || txt || `HTTP ${r.status}`);
+        grpMsg.className='success';
+        grpMsg.textContent='Saved!';
+        await loadGroups();
+      }catch(e){
+        grpMsg.className='error';
+        grpMsg.textContent = e.message || 'Save failed';
+      }
+    }
+
+    function fmtMoney(v){
+      if(v==null || v==='') return '';
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toFixed(2) : '';
+    }
+    function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    // ===== Init =====
+    document.getElementById('btn-refresh-clients').addEventListener('click', loadClients);
+    loadClients(); // default
   </script>
 </body>
 </html>
