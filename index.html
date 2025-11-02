@@ -67,7 +67,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.14</div>
+    <div id="version">SNF UI v0.15</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -578,9 +578,9 @@
         groupsTbody.innerHTML = rows.map(g => `
           <tr>
             <td>${esc(g.group_name||'')}</td>
-            <td>${fmtMoney(g.total_amount)}</td>
-            <td>${fmtMoney(g.total_referral_amount)}</td>
-            <td>${fmtMoney(g.total_roi)}</td>
+            <td>${fmtMoneyUSD(g.total_amount)}</td>
+            <td>${fmtMoneyUSD(g.total_referral_amount)}</td>
+            <td>${fmtMoneyUSD(g.total_roi)}</td>
             <td>${esc(g.date_started||'')}</td>
           </tr>
         `).join('');
@@ -689,10 +689,12 @@
       }
     }
 
-    function fmtMoney(v){
+    // ---- formatters ----
+    const usdFmt = new Intl.NumberFormat('en-US', { style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2 });
+    function fmtMoneyUSD(v){
       if(v==null || v==='') return '';
       const n = Number(v);
-      return Number.isFinite(n) ? n.toFixed(2) : '';
+      return Number.isFinite(n) ? usdFmt.format(n) : '';
     }
     function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -705,3 +707,4 @@
   </script>
 </body>
 </html>
+
