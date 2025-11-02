@@ -61,7 +61,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.13</div>
+    <div id="version">SNF UI v0.14</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -550,64 +550,67 @@
       }
     }
 
-    async function submitAddGroup(){
-      grpMsg.className='muted';
-      grpMsg.textContent='Saving…';
+async function submitAddGroup(){
+  grpMsg.className='muted';
+  grpMsg.textContent='Saving…';
 
-      const payload = {
-        year: Number(grpYear.value),
-        group_name: (grpName.value||'').trim(),
-        date_started: grpDate.value || null,               // input date emits YYYY-MM-DD
-        total_amount: grpAmount.value === '' ? 0 : Number(grpAmount.value)
-      };
+  const payload = {
+    year: Number(grpYear.value),
+    group_name: (grpName.value||'').trim(),
+    date_started: grpDate.value || null,
+    total_amount: grpAmount.value === '' ? 0 : Number(grpAmount.value)
+  };
 
-      if(!payload.group_name){ grpMsg.className='error'; grpMsg.textContent='Please enter a Group Name.'; return; }
-      if(!Number.isInteger(payload.year)){ grpMsg.className='error'; grpMsg.textContent='Select a valid Year.'; return; }
-      if(payload.date_started && !/^\d{4}-\d{2}-\d{2}$/.test(payload.date_started)){
-        grpMsg.className='error'; grpMsg.textContent='Date must be YYYY-MM-DD.'; return;
-      }
-      if(!Number.isFinite(payload.total_amount)){
-        grpMsg.className='error'; grpMsg.textContent='Total Amount must be numeric.'; return;
-      }
+  if(!payload.group_name){ grpMsg.className='error'; grpMsg.textContent='Please enter a Group Name.'; return; }
+  if(!Number.isInteger(payload.year)){ grpMsg.className='error'; grpMsg.textContent='Select a valid Year.'; return; }
+  if(payload.date_started && !/^\d{4}-\d{2}-\d{2}$/.test(payload.date_started)){
+    grpMsg.className='error'; grpMsg.textContent='Date must be YYYY-MM-DD.'; return;
+  }
+  if(!Number.isFinite(payload.total_amount)){
+    grpMsg.className='error'; grpMsg.textContent='Total Amount must be numeric.'; return;
+  }
 
-      try{
-        const r = await fetch(GROUPS_ADD_URL, {
-          method:'POST',
-          headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
-          body: JSON.stringify(payload),
-          cache:'no-store',
-          mode:'cors'
-        });
+  try{
+    const r = await fetch(GROUPS_ADD_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
+      body: JSON.stringify(payload),
+      cache:'no-store',
+      mode:'cors'
+    });
 
-        const raw = await r.text();
-        let d = null; try { d = JSON.parse(raw); } catch {}
+    const raw = await r.text();
+    let d = null; try { d = JSON.parse(raw); } catch {}
 
-        if (!r.ok || !d?.ok) {
-          const msg = (d?.error || d?.detail || d?.message || raw || `HTTP ${r.status}`);
-          grpMsg.className='error';
-          grpMsg.innerHTML = `Save failed: ${esc(msg)}<br><span class="muted">Check console for payload/response debug.</span>`;
-          console.error('GROUPS ADD ERROR', {
-            status: r.status,
-            requestPayload: payload,
-            responseRaw: raw,
-            responseJson: d
-          });
-          return;
-        }
-
-        grpMsg.className='success';
-        grpMsg.textContent='Saved!';
-        console.debug('GROUPS ADD OK', { requestPayload: payload, responseJson: d });
-
-        await loadGroups();
-        // Uncomment to auto-close after save:
-        // showGroupForm(false);
-      }catch(e){
-        grpMsg.className='error';
-        grpMsg.innerHTML = `Network/JS error: ${esc(e.message||String(e))}<br><span class="muted">See console for details.</span>`;
-        console.error('GROUPS ADD EXCEPTION', e, { requestPayload: payload });
-      }
+    if (!r.ok || !d?.ok) {
+      const msg = (d?.error || d?.detail || d?.message || raw || `HTTP ${r.status}`);
+      grpMsg.className='error';
+      grpMsg.innerHTML = `Save failed: ${esc(msg)}<br><span class="muted">Check console for payload/response debug.</span>`;
+      console.error('GROUPS ADD ERROR', {
+        status: r.status,
+        requestPayload: payload,
+        responseRaw: raw,
+        responseJson: d
+      });
+      return;
     }
+
+    grpMsg.className='success';
+    grpMsg.textContent='Saved!';
+    console.debug('GROUPS ADD OK', { requestPayload: payload, responseJson: d });
+
+    await loadGroups();
+    // NEW: close the form and put focus back on the Add button
+    showGroupForm(false);
+    document.getElementById('btn-toggle-add-group')?.focus();
+
+  }catch(e){
+    grpMsg.className='error';
+    grpMsg.innerHTML = `Network/JS error: ${esc(e.message||String(e))}<br><span class="muted">See console for details.</span>`;
+    console.error('GROUPS ADD EXCEPTION', e, { requestPayload: payload });
+  }
+}
+
 
     function fmtMoney(v){
       if(v==null || v==='') return '';
