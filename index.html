@@ -67,7 +67,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.15</div>
+    <div id="version">SNF UI v0.16</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -580,7 +580,7 @@
             <td>${esc(g.group_name||'')}</td>
             <td>${fmtMoneyUSD(g.total_amount)}</td>
             <td>${fmtMoneyUSD(g.total_referral_amount)}</td>
-            <td>${fmtMoneyUSD(g.total_roi)}</td>
+            <td>${fmtPercent(g.total_roi)}</td>
             <td>${esc(g.date_started||'')}</td>
           </tr>
         `).join('');
@@ -696,14 +696,21 @@
       const n = Number(v);
       return Number.isFinite(n) ? usdFmt.format(n) : '';
     }
+    const pctIntl = new Intl.NumberFormat('en-US', { style:'percent', minimumFractionDigits:2, maximumFractionDigits:2 });
+    function fmtPercent(v){
+      if(v==null || v==='') return '';
+      const n = Number(v);
+      if(!Number.isFinite(n)) return '';
+      // Accept either 0–1 (fraction) or 0–100 (percent). If >1, assume already a percent.
+      if (Math.abs(n) <= 1) return pctIntl.format(n);       // e.g. 0.125 -> 12.50%
+      return `${n.toFixed(2)}%`;                            // e.g. 12.5 -> 12.50%
+    }
     function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
     // ===== Init =====
     document.getElementById('btn-refresh-clients').addEventListener('click', loadClients);
-    // Start with Clients
-    loadClients();
-    // Ensure Groups form starts closed & button text is correct
-    showGroupForm(false);
+    loadClients();            // Start with Clients
+    showGroupForm(false);     // Ensure Groups form starts closed
   </script>
 </body>
 </html>
