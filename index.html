@@ -32,26 +32,17 @@
     .muted{color:var(--muted)}
     .input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff}
     .label{font-size:12px;color:var(--muted);margin-bottom:6px}
-    /* Modal */
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.2);display:none;align-items:center;justify-content:center;padding:16px;z-index:30}
-    .modal{background:#fff;border-radius:16px;max-width:680px;width:100%;border:1px solid var(--border);box-shadow:0 8px 28px rgba(0,0,0,.15)}
-    .modal header{border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-    .modal footer{display:flex;gap:10px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--border)}
-    .modal .content{padding:16px}
-    /* Tables */
     .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
     table{width:100%;border-collapse:separate;border-spacing:0;background:#fff}
     thead th{position:sticky;top:0;background:#f9fafb;border-bottom:1px solid var(--border);text-align:left;font-weight:600;padding:10px;white-space:nowrap}
     tbody td{border-top:1px solid var(--border);padding:10px;vertical-align:top;white-space:nowrap}
     tbody tr:nth-child(even){background:#fcfcfd}
     .empty{padding:10px;color:var(--muted)}
-    /* Sortable headers (Groups tab) */
     th.sortable { cursor:pointer; user-select:none; }
     th.sortable .hdr { display:flex; align-items:center; gap:6px; }
     th.sortable .arrow { font-size:11px; color:var(--muted); }
     th.sortable.active { color:var(--text); }
     th.sortable.active .arrow { color:var(--text); }
-    /* Compact filter line on ROI */
     .filter-item{min-width:220px}
     .filter-actions{display:flex;gap:8px;align-items:flex-end}
     @media (max-width:780px){
@@ -66,7 +57,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.20</div>
+    <div id="version">SNF UI v0.21</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -74,10 +65,11 @@
     <div class="tab" data-tab="payments">Payments</div>
     <div class="tab" data-tab="groups">Groups</div>
     <div class="tab" data-tab="roi">Group ROI</div>
+    <div class="tab" data-tab="contacts">Contacts</div>
   </div>
 
   <main>
-    <!-- Clients Panel -->
+    <!-- Clients Panel (unchanged) -->
     <section class="panel" id="panel-clients">
       <div class="toolbar">
         <div><strong>Clients</strong> <span class="muted">— add and manage clients</span></div>
@@ -86,7 +78,6 @@
           <button class="btn primary" id="btn-add-client">+ Add Client</button>
         </div>
       </div>
-
       <div id="clients-status" class="muted" style="margin-bottom:8px">Loading clients…</div>
       <div class="table-wrap" id="clients-table-wrap" style="display:none">
         <table id="clients-table" aria-label="Clients"></table>
@@ -98,7 +89,7 @@
       <div class="muted">Payments tab placeholder.</div>
     </section>
 
-    <!-- Groups Panel -->
+    <!-- Groups Panel (kept from v0.20) -->
     <section class="panel" id="panel-groups" style="display:none">
       <div class="toolbar">
         <div><strong>Groups</strong> <span class="muted">— list and add groups</span></div>
@@ -108,7 +99,6 @@
         </div>
       </div>
 
-      <!-- Add Group inline form -->
       <div id="group-form-wrap" style="display:none; margin-bottom:12px;">
         <div class="row">
           <div class="grow">
@@ -154,7 +144,7 @@
       </div>
     </section>
 
-    <!-- Group ROI Panel -->
+    <!-- Group ROI Panel (kept from v0.20) -->
     <section class="panel" id="panel-roi" style="display:none">
       <div class="toolbar">
         <div><strong>Group ROI</strong> <span class="muted">— filter by Group and Year</span></div>
@@ -197,9 +187,37 @@
         </table>
       </div>
     </section>
+
+    <!-- Contacts Panel (NEW) -->
+    <section class="panel" id="panel-contacts" style="display:none">
+      <div class="toolbar">
+        <div><strong>Contacts</strong> <span class="muted">— list of contacts</span></div>
+        <div style="display:flex; gap:8px; align-items:center">
+          <button class="btn" id="btn-refresh-contacts">Refresh</button>
+        </div>
+      </div>
+
+      <div id="contacts-status" class="muted" style="margin-bottom:8px">Loading contacts…</div>
+      <div class="table-wrap">
+        <table id="contacts-table" aria-label="Contacts">
+          <thead>
+            <tr>
+              <th>First Name</th>
+              <th>Last Name</th>
+              <th>Group</th>
+              <th>Occupation Type</th>
+              <th>Referred Clients</th>
+            </tr>
+          </thead>
+          <tbody id="contacts-tbody">
+            <tr><td class="empty" colspan="5">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
-  <!-- Add Client Modal -->
+  <!-- Add Client Modal (unchanged) -->
   <div class="modal-backdrop" id="add-modal-backdrop" role="dialog" aria-modal="true">
     <div class="modal" role="document">
       <header>
@@ -267,8 +285,10 @@
     const GROUPS_LIST_URL  = 'https://snf-list-groups.dennis-e64.workers.dev';
     const GROUPS_ADD_URL   = 'https://snf-add-group.dennis-e64.workers.dev';
 
-    // ROI list (returns rows + distincts; supports ?group_name=&year=)
     const ROI_LIST_URL     = 'https://snf-list-group-roi.dennis-e64.workers.dev/';
+
+    // NEW: Contacts list endpoint
+    const CONTACTS_LIST_URL = 'https://snf-list-contacts.dennis-e64.workers.dev/';
 
     // ===== Tabs =====
     const tabs = document.querySelectorAll('.tab');
@@ -277,6 +297,7 @@
       payments: document.getElementById('panel-payments'),
       groups: document.getElementById('panel-groups'),
       roi: document.getElementById('panel-roi'),
+      contacts: document.getElementById('panel-contacts'),
     };
     tabs.forEach(t => t.addEventListener('click', () => {
       tabs.forEach(x => x.classList.remove('active'));
@@ -284,12 +305,13 @@
       Object.values(panels).forEach(p => p.style.display='none');
       const which = t.dataset.tab;
       panels[which].style.display = '';
-      if (which === 'clients') loadClients();
-      if (which === 'groups')  loadGroups();
-      if (which === 'roi')     initAndLoadROI();
+      if (which === 'clients')  loadClients();
+      if (which === 'groups')   loadGroups();
+      if (which === 'roi')      initAndLoadROI();
+      if (which === 'contacts') loadContacts();
     }));
 
-    // ===== Clients =====
+    // ===== Clients (unchanged key bits) =====
     const modalBackdrop = document.getElementById('add-modal-backdrop');
     const openModal = () => { modalBackdrop.style.display='flex'; modalBackdrop.setAttribute('aria-hidden','false'); };
     const closeModal = () => { modalBackdrop.style.display='none'; modalBackdrop.setAttribute('aria-hidden','true'); resetForm(); };
@@ -499,7 +521,7 @@
         .replace(/\b([a-z])/g, (m)=>m.toUpperCase());
     }
 
-    // ===== Groups (sortable) =====
+    // ===== Groups (existing behavior from v0.20) =====
     const groupsTbody       = document.getElementById('groups-tbody');
     const btnToggleAddGroup = document.getElementById('btn-toggle-add-group');
     const btnRefreshGroups  = document.getElementById('btn-refresh-groups');
@@ -510,29 +532,18 @@
     const grpAmount = document.getElementById('grp-amount');
     const grpMsg    = document.getElementById('group-form-msg');
 
-    let groupsData = []; // cache
-    let groupSort = { col: 'group_name', dir: 'asc' }; // default
+    let groupsData = [];
+    let groupSort = { col: 'group_name', dir: 'asc' };
 
     function setAddGroupButtonState(open){
       const btn = btnToggleAddGroup;
       btn.setAttribute('aria-pressed', open ? 'true' : 'false');
-      if (open) {
-        btn.textContent = 'Cancel Add';
-        btn.classList.remove('primary');
-      } else {
-        btn.textContent = '+ Add Group';
-        btn.classList.add('primary');
-      }
+      if (open) { btn.textContent = 'Cancel Add'; btn.classList.remove('primary'); }
+      else { btn.textContent = '+ Add Group'; btn.classList.add('primary'); }
     }
     function showGroupForm(open){
-      if (open) {
-        grpFormWrap.style.display = 'block';
-        grpMsg.textContent = '';
-      } else {
-        grpFormWrap.style.display = 'none';
-        grpMsg.textContent = '';
-        grpName.value=''; grpDate.value=''; grpAmount.value='';
-      }
+      if (open) { grpFormWrap.style.display = 'block'; grpMsg.textContent = ''; }
+      else { grpFormWrap.style.display = 'none'; grpMsg.textContent=''; grpName.value=''; grpDate.value=''; grpAmount.value=''; }
       setAddGroupButtonState(open);
     }
 
@@ -545,7 +556,6 @@
       showGroupForm(false);
     });
 
-    // Year dropdown: 2025..2034
     (function initYears(){
       for(let y=2025; y<2025+10; y++){
         const o=document.createElement('option');
@@ -651,7 +661,7 @@
         const sa = (typeof va === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(va)) ? va : '';
         const sb = (typeof vb === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(vb)) ? vb : '';
         if (sa === sb) return 0;
-        return (sa < sb ? -1 : 1) * mul; // ISO date lexical compare
+        return (sa < sb ? -1 : 1) * mul;
       }
 
       const sa = (va ?? '').toString().toLowerCase();
@@ -696,12 +706,7 @@
           const msg = (d?.error || d?.detail || d?.message || raw || `HTTP ${r.status}`);
           grpMsg.className='error';
           grpMsg.innerHTML = `Save failed: ${esc(msg)}<br><span class="muted">Check console for payload/response debug.</span>`;
-          console.error('GROUPS ADD ERROR', {
-            status: r.status,
-            requestPayload: payload,
-            responseRaw: raw,
-            responseJson: d
-          });
+          console.error('GROUPS ADD ERROR', { status: r.status, requestPayload: payload, responseRaw: raw, responseJson: d });
           return;
         }
 
@@ -709,7 +714,6 @@
         grpMsg.textContent='Saved!';
         await loadGroups();
 
-        // Close form and return focus to Add button for rapid entry
         showGroupForm(false);
         document.getElementById('btn-toggle-add-group')?.focus();
 
@@ -720,7 +724,7 @@
       }
     }
 
-    // ===== Group ROI (server-side filtering) =====
+    // ===== ROI (unchanged core) =====
     const roiStatus = document.getElementById('roi-status');
     const roiTbody  = document.getElementById('roi-tbody');
     const roiFilterGroup = document.getElementById('roi-filter-group');
@@ -729,28 +733,20 @@
     const btnRetryRoi    = document.getElementById('btn-retry-roi');
 
     let roiDistinctLoaded = false;
-
     async function initAndLoadROI(){
       if (!roiDistinctLoaded) {
         await fetchRoiDistinctsAndInitialRows();
         roiDistinctLoaded = true;
       } else {
-        await loadRoiRowsFromFilters(); // keep fresh if user returns
+        await loadRoiRowsFromFilters();
       }
     }
-
     async function fetchRoiDistinctsAndInitialRows(){
       roiStatus.textContent = 'Loading ROI…';
       roiTbody.innerHTML = `<tr><td class="empty" colspan="6">Loading…</td></tr>`;
       btnRetryRoi.style.display = 'none';
       try{
-        // First call without filters to get rows + distincts
-        const res = await fetch(ROI_LIST_URL, {
-          method:'GET',
-          headers:{Accept:'application/json'},
-          cache:'no-store',
-          mode:'cors'
-        });
+        const res = await fetch(ROI_LIST_URL, { method:'GET', headers:{Accept:'application/json'}, cache:'no-store', mode:'cors' });
         const raw = await res.text(); let data = null; try { data = JSON.parse(raw); } catch {}
         if (!res.ok) {
           const msg = (data?.error || data?.message || raw || `HTTP ${res.status}`);
@@ -769,42 +765,26 @@
         console.error('ROI LIST EXCEPTION', e);
       }
     }
-
     function populateRoiFilters(distinct){
       const groups = (distinct?.group_names || []).slice();
       const years  = (distinct?.years || []).slice();
-
       roiFilterGroup.innerHTML = '<option value="ALL">ALL</option>';
       groups.forEach(g => { const o=document.createElement('option'); o.value=g; o.textContent=g; roiFilterGroup.appendChild(o); });
-
       roiFilterYear.innerHTML = '<option value="ALL">ALL</option>';
       years.forEach(y => { const o=document.createElement('option'); o.value=String(y); o.textContent=String(y); roiFilterYear.appendChild(o); });
-
-      roiFilterGroup.value = 'ALL';
-      roiFilterYear.value  = 'ALL';
+      roiFilterGroup.value = 'ALL'; roiFilterYear.value = 'ALL';
     }
-
     async function loadRoiRowsFromFilters(){
       const group = roiFilterGroup.value;
       const year  = roiFilterYear.value;
-
       roiStatus.textContent = 'Loading…';
       roiTbody.innerHTML = `<tr><td class="empty" colspan="6">Loading…</td></tr>`;
       btnRetryRoi.style.display = 'none';
-
       try{
-        // Build URL with server-side filters
         const u = new URL(ROI_LIST_URL);
         if (group && group !== 'ALL') u.searchParams.set('group_name', group);
         if (year && year !== 'ALL')   u.searchParams.set('year', year);
-
-        const res = await fetch(u.toString(), {
-          method:'GET',
-          headers:{Accept:'application/json'},
-          cache:'no-store',
-          mode:'cors'
-        });
-
+        const res = await fetch(u.toString(), { method:'GET', headers:{Accept:'application/json'}, cache:'no-store', mode:'cors' });
         const raw = await res.text(); let data = null; try { data = JSON.parse(raw); } catch {}
         if (!res.ok) {
           const msg = (data?.error || data?.message || raw || `HTTP ${res.status}`);
@@ -814,7 +794,6 @@
           console.error('ROI FILTER ERROR', { status: res.status, raw, json: data, group, year });
           return;
         }
-
         renderRoiTableRows(Array.isArray(data?.rows) ? data.rows : []);
       }catch(e){
         roiStatus.textContent = `Network/JS error: ${e.message||String(e)}`;
@@ -823,7 +802,6 @@
         console.error('ROI FILTER EXCEPTION', e);
       }
     }
-
     function renderRoiTableRows(rows){
       roiStatus.textContent = rows.length ? `Loaded ${rows.length} record${rows.length===1?'':'s'}.` : 'No records found.';
       if (!rows.length) {
@@ -842,8 +820,53 @@
       `).join('');
     }
 
-    document.getElementById('btn-load-roi').addEventListener('click', loadRoiRowsFromFilters);
-    btnRetryRoi.addEventListener('click', fetchRoiDistinctsAndInitialRows);
+    // ===== Contacts (NEW) =====
+    const contactsStatus = document.getElementById('contacts-status');
+    const contactsTbody  = document.getElementById('contacts-tbody');
+    document.getElementById('btn-refresh-contacts').addEventListener('click', loadContacts);
+
+    async function loadContacts(){
+      contactsStatus.textContent = 'Loading contacts…';
+      contactsTbody.innerHTML = `<tr><td class="empty" colspan="5">Loading…</td></tr>`;
+      try{
+        const res = await fetch(CONTACTS_LIST_URL, {
+          method:'GET',
+          headers:{ Accept:'application/json' },
+          cache:'no-store',
+          mode:'cors'
+        });
+        const raw = await res.text();
+        let data = null; try { data = JSON.parse(raw); } catch {}
+        if (!res.ok) {
+          const msg = data?.error || data?.message || raw || `HTTP ${res.status}`;
+          contactsStatus.textContent = `Error: ${msg}`;
+          contactsTbody.innerHTML = `<tr><td class="empty" colspan="5" style="color:var(--danger)">Error: ${esc(msg)}</td></tr>`;
+          console.error('CONTACTS LIST ERROR', { status: res.status, raw, json: data });
+          return;
+        }
+
+        const rows = Array.isArray(data?.rows) ? data.rows : [];
+        contactsStatus.textContent = rows.length ? `Loaded ${rows.length} contact${rows.length===1?'':'s'}.` : 'No contacts found.';
+        if (!rows.length) {
+          contactsTbody.innerHTML = `<tr><td class="empty" colspan="5">No contacts found.</td></tr>`;
+          return;
+        }
+
+        contactsTbody.innerHTML = rows.map(r => `
+          <tr>
+            <td>${esc(r.first_name||'')}</td>
+            <td>${esc(r.last_name||'')}</td>
+            <td>${esc(r.group_name||'')}</td>
+            <td>${esc(r.occupation_type||'')}</td>
+            <td>${esc(r.referred_clients ?? 0)}</td>
+          </tr>
+        `).join('');
+      }catch(e){
+        contactsStatus.textContent = `Network/JS error: ${e.message||String(e)}`;
+        contactsTbody.innerHTML = `<tr><td class="empty" colspan="5" style="color:var(--danger)">Network/JS error: ${esc(e.message||String(e))}</td></tr>`;
+        console.error('CONTACTS LIST EXCEPTION', e);
+      }
+    }
 
     // ---- formatters / utils ----
     const usdFmt = new Intl.NumberFormat('en-US', { style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2 });
@@ -857,7 +880,6 @@
       if(v==null || v==='') return '';
       const n = Number(v);
       if(!Number.isFinite(n)) return '';
-      // Accept 0–1 (fraction) or 0–100 (percent)
       if (Math.abs(n) <= 1) return pctIntl.format(n);
       return `${n.toFixed(2)}%`;
     }
@@ -866,9 +888,7 @@
     // ===== Init =====
     document.getElementById('btn-refresh-clients').addEventListener('click', loadClients);
     document.getElementById('btn-refresh-groups').addEventListener('click', loadGroups);
-    loadClients();
-    showGroupForm(false);
+    loadClients(); // default tab
   </script>
 </body>
 </html>
-
