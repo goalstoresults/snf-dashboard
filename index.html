@@ -61,7 +61,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.11</div>
+    <div id="version">SNF UI v0.13</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -99,7 +99,7 @@
         <div><strong>Groups</strong> <span class="muted">— list and add groups</span></div>
         <div style="display:flex; gap:8px; align-items:center">
           <button class="btn" id="btn-refresh-groups">Refresh</button>
-          <button class="btn primary" id="btn-add-group">+ Add Group</button>
+          <button class="btn primary" id="btn-toggle-add-group" aria-pressed="false">+ Add Group</button>
         </div>
       </div>
 
@@ -124,7 +124,7 @@
           </div>
         </div>
         <div class="row" style="margin-top:10px; justify-content:flex-end;">
-          <button class="btn" id="btn-cancel-group">Cancel</button>
+          <button class="btn" id="btn-cancel-group" style="display:none">Cancel</button>
           <button class="btn primary" id="btn-save-group">Save Group</button>
         </div>
         <div id="group-form-msg" class="muted" style="margin-top:8px;"></div>
@@ -462,17 +462,49 @@
     }
 
     // ===== Groups logic =====
-    const groupsTbody = document.getElementById('groups-tbody');
-    const btnAddGroup = document.getElementById('btn-add-group');
-    const btnRefreshGroups = document.getElementById('btn-refresh-groups');
-    const grpFormWrap = document.getElementById('group-form-wrap');
+    const groupsTbody       = document.getElementById('groups-tbody');
+    const btnToggleAddGroup = document.getElementById('btn-toggle-add-group');
+    const btnRefreshGroups  = document.getElementById('btn-refresh-groups');
+    const grpFormWrap       = document.getElementById('group-form-wrap');
     const grpYear   = document.getElementById('grp-year');
     const grpName   = document.getElementById('grp-name');
     const grpDate   = document.getElementById('grp-date');
     const grpAmount = document.getElementById('grp-amount');
     const grpMsg    = document.getElementById('group-form-msg');
 
-    // Year dropdown 2025..2034
+    function setAddGroupButtonState(open){
+      const btn = btnToggleAddGroup;
+      btn.setAttribute('aria-pressed', open ? 'true' : 'false');
+      if (open) {
+        btn.textContent = 'Cancel Add';
+        btn.classList.remove('primary');
+      } else {
+        btn.textContent = '+ Add Group';
+        btn.classList.add('primary');
+      }
+    }
+    function showGroupForm(open){
+      if (open) {
+        grpFormWrap.style.display = 'block';
+        grpMsg.textContent = '';
+      } else {
+        grpFormWrap.style.display = 'none';
+        grpMsg.textContent = '';
+        grpName.value=''; grpDate.value=''; grpAmount.value='';
+      }
+      setAddGroupButtonState(open);
+    }
+
+    btnToggleAddGroup.addEventListener('click', () => {
+      const open = grpFormWrap.style.display !== 'block';
+      showGroupForm(open);
+    });
+    document.getElementById('btn-cancel-group').addEventListener('click', (e) => {
+      e.preventDefault();
+      showGroupForm(false);
+    });
+
+    // Year dropdown: 2025..2034
     (function initYears(){
       for(let y=2025; y<2025+10; y++){
         const o=document.createElement('option');
@@ -481,27 +513,25 @@
       }
     })();
 
-    btnAddGroup.addEventListener('click', () => {
-      grpMsg.textContent = '';
-      grpFormWrap.style.display = grpFormWrap.style.display === 'none' ? 'block' : 'none';
-    });
-    document.getElementById('btn-cancel-group').addEventListener('click', () => {
-      grpFormWrap.style.display='none';
-      grpMsg.textContent='';
-      grpName.value=''; grpDate.value=''; grpAmount.value='';
-    });
-    document.getElementById('btn-save-group').addEventListener('click', submitAddGroup);
     btnRefreshGroups.addEventListener('click', loadGroups);
+    document.getElementById('btn-save-group').addEventListener('click', submitAddGroup);
 
     async function loadGroups(){
       groupsTbody.innerHTML = `<tr><td class="empty" colspan="5">Loading…</td></tr>`;
       try{
-        const r = await fetch(GROUPS_LIST_URL, { method:'GET', headers:{Accept:'application/json'} });
-        const txt = await r.text();
-        let d=null; try{ d=JSON.parse(txt);}catch{}
-        if(!r.ok) throw new Error((d && (d.error||d.message)) || txt || `HTTP ${r.status}`);
-        const rows = (d && d.rows) || [];
-        if(!rows.length){
+        const r = await fetch(GROUPS_LIST_URL, { method:'GET', headers:{Accept:'application/json'}, cache:'no-store', mode:'cors' });
+        const raw = await r.text();
+        let d = null; try { d = JSON.parse(raw); } catch {}
+
+        if (!r.ok) {
+          const msg = d?.error || d?.message || raw || `HTTP ${r.status}`;
+          groupsTbody.innerHTML = `<tr><td class="empty" colspan="5" style="color:var(--danger)">Error: ${esc(msg)}</td></tr>`;
+          console.error('GROUPS LIST ERROR', { status:r.status, raw, json:d });
+          return;
+        }
+
+        const rows = Array.isArray(d?.rows) ? d.rows : [];
+        if (!rows.length){
           groupsTbody.innerHTML = `<tr><td class="empty" colspan="5">No groups found.</td></tr>`;
           return;
         }
@@ -516,38 +546,66 @@
         `).join('');
       }catch(e){
         groupsTbody.innerHTML = `<tr><td class="empty" colspan="5" style="color:var(--danger)">Error: ${esc(e.message||String(e))}</td></tr>`;
+        console.error('GROUPS LIST EXCEPTION', e);
       }
     }
 
     async function submitAddGroup(){
       grpMsg.className='muted';
       grpMsg.textContent='Saving…';
+
       const payload = {
         year: Number(grpYear.value),
         group_name: (grpName.value||'').trim(),
-        date_started: grpDate.value || null,
+        date_started: grpDate.value || null,               // input date emits YYYY-MM-DD
         total_amount: grpAmount.value === '' ? 0 : Number(grpAmount.value)
       };
+
       if(!payload.group_name){ grpMsg.className='error'; grpMsg.textContent='Please enter a Group Name.'; return; }
       if(!Number.isInteger(payload.year)){ grpMsg.className='error'; grpMsg.textContent='Select a valid Year.'; return; }
-      if(payload.date_started && !/^\d{4}-\d{2}-\d{2}$/.test(payload.date_started)){ grpMsg.className='error'; grpMsg.textContent='Date must be YYYY-MM-DD.'; return; }
-      if(!Number.isFinite(payload.total_amount)){ grpMsg.className='error'; grpMsg.textContent='Total Amount must be numeric.'; return; }
+      if(payload.date_started && !/^\d{4}-\d{2}-\d{2}$/.test(payload.date_started)){
+        grpMsg.className='error'; grpMsg.textContent='Date must be YYYY-MM-DD.'; return;
+      }
+      if(!Number.isFinite(payload.total_amount)){
+        grpMsg.className='error'; grpMsg.textContent='Total Amount must be numeric.'; return;
+      }
 
       try{
         const r = await fetch(GROUPS_ADD_URL, {
           method:'POST',
-          headers:{'Content-Type':'application/json',Accept:'application/json'},
-          body: JSON.stringify(payload)
+          headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
+          body: JSON.stringify(payload),
+          cache:'no-store',
+          mode:'cors'
         });
-        const txt = await r.text();
-        let d=null; try{ d=JSON.parse(txt);}catch{}
-        if(!r.ok || !d?.ok) throw new Error((d && (d.error||d.detail||d.message)) || txt || `HTTP ${r.status}`);
+
+        const raw = await r.text();
+        let d = null; try { d = JSON.parse(raw); } catch {}
+
+        if (!r.ok || !d?.ok) {
+          const msg = (d?.error || d?.detail || d?.message || raw || `HTTP ${r.status}`);
+          grpMsg.className='error';
+          grpMsg.innerHTML = `Save failed: ${esc(msg)}<br><span class="muted">Check console for payload/response debug.</span>`;
+          console.error('GROUPS ADD ERROR', {
+            status: r.status,
+            requestPayload: payload,
+            responseRaw: raw,
+            responseJson: d
+          });
+          return;
+        }
+
         grpMsg.className='success';
         grpMsg.textContent='Saved!';
+        console.debug('GROUPS ADD OK', { requestPayload: payload, responseJson: d });
+
         await loadGroups();
+        // Uncomment to auto-close after save:
+        // showGroupForm(false);
       }catch(e){
         grpMsg.className='error';
-        grpMsg.textContent = e.message || 'Save failed';
+        grpMsg.innerHTML = `Network/JS error: ${esc(e.message||String(e))}<br><span class="muted">See console for details.</span>`;
+        console.error('GROUPS ADD EXCEPTION', e, { requestPayload: payload });
       }
     }
 
@@ -560,7 +618,10 @@
 
     // ===== Init =====
     document.getElementById('btn-refresh-clients').addEventListener('click', loadClients);
-    loadClients(); // default
+    // Start with Clients
+    loadClients();
+    // Ensure Groups form starts closed & button text is correct
+    showGroupForm(false);
   </script>
 </body>
 </html>
