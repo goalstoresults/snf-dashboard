@@ -21,13 +21,14 @@
     main{padding:18px 20px}
     .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
     .row{display:flex;flex-wrap:wrap;gap:12px}
+    .row-nowrap{display:flex;flex-wrap:nowrap;gap:12px;align-items:flex-end}
     .grow{flex:1 1 220px}
     .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid var(--border);
       background:#fff;cursor:pointer}
     .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
     .btn.small{padding:6px 10px}
     .btn:disabled{opacity:.6;cursor:not-allowed}
-    .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:12px}
     .muted{color:var(--muted)}
     .input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff}
     .label{font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -40,7 +41,7 @@
     /* Tables */
     .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
     table{width:100%;border-collapse:separate;border-spacing:0;background:#fff}
-    thead th{position:sticky;top:0;background:#f9fafb;border-bottom:1px solid var(--border);text-align:left;font-weight:600;padding:10px}
+    thead th{position:sticky;top:0;background:#f9fafb;border-bottom:1px solid var(--border);text-align:left;font-weight:600;padding:10px;white-space:nowrap}
     tbody td{border-top:1px solid var(--border);padding:10px;vertical-align:top;white-space:nowrap}
     tbody tr:nth-child(even){background:#fcfcfd}
     .empty{padding:10px;color:var(--muted)}
@@ -50,13 +51,22 @@
     th.sortable .arrow { font-size:11px; color:var(--muted); }
     th.sortable.active { color:var(--text); }
     th.sortable.active .arrow { color:var(--text); }
-    @media (max-width:640px){ .toolbar{flex-direction:column;align-items:flex-start;gap:8px} }
+    /* Compact filter line on ROI */
+    .filter-item{min-width:220px}
+    .filter-actions{display:flex;gap:8px;align-items:flex-end}
+    @media (max-width:780px){
+      .row-nowrap{flex-wrap:wrap}
+      .filter-item{min-width:160px}
+    }
+    #version{font-size:12px;color:var(--muted)}
+    .error{color:var(--danger);font-size:12px;margin-top:6px}
+    .success{color:var(--accent-2);font-size:12px;margin-top:6px}
   </style>
 </head>
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.17</div>
+    <div id="version">SNF UI v0.20</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -148,21 +158,22 @@
     <section class="panel" id="panel-roi" style="display:none">
       <div class="toolbar">
         <div><strong>Group ROI</strong> <span class="muted">— filter by Group and Year</span></div>
-        <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap">
-          <div class="grow">
+        <div class="row-nowrap" style="gap:10px">
+          <div class="filter-item">
             <div class="label">Group Name</div>
             <select class="input" id="roi-filter-group">
               <option value="ALL">ALL</option>
             </select>
           </div>
-          <div class="grow">
+          <div class="filter-item">
             <div class="label">Year</div>
             <select class="input" id="roi-filter-year">
               <option value="ALL">ALL</option>
             </select>
           </div>
-          <div style="padding-top:20px">
+          <div class="filter-actions">
             <button class="btn primary" id="btn-load-roi">Load</button>
+            <button class="btn" id="btn-retry-roi" style="display:none">Retry</button>
           </div>
         </div>
       </div>
@@ -207,7 +218,6 @@
               <input class="input" name="last_name" required />
             </div>
           </div>
-
           <div class="row">
             <div class="grow">
               <div class="label">Email</div>
@@ -218,7 +228,6 @@
               <input class="input" name="phone" placeholder="+15555550123" />
             </div>
           </div>
-
           <div class="row">
             <div class="grow">
               <div class="label">Referred By (optional — type at least 2 characters)</div>
@@ -226,11 +235,9 @@
                 <input class="input" id="ref-search" placeholder="e.g., Smith, Jane  or  jane@company.com" />
                 <div class="ac-list" id="ref-list"></div>
               </div>
-              <!-- Hidden fields sent to Worker -->
               <input type="hidden" name="referred_by_id" id="ref-ghl-id" />
               <input type="hidden" name="referred_by_first_name" id="ref-first" />
               <input type="hidden" name="referred_by_last_name" id="ref-last" />
-
               <div id="ref-pill" style="margin-top:8px; display:none;" class="pill">
                 <span id="ref-pill-text"></span>
                 <span class="x" id="ref-pill-x">✕</span>
@@ -240,7 +247,6 @@
               </div>
             </div>
           </div>
-
           <div id="form-msg" class="muted" style="margin-top:10px"></div>
         </form>
       </div>
@@ -252,18 +258,17 @@
   </div>
 
   <script>
-    // ===== Config: Worker base URLs =====
+    // ===== Worker base URLs =====
     const API_BASE_ADD     = 'https://snf-add-client.dennis-e64.workers.dev';
     const API_BASE_SEARCH  = 'https://snf-search-contacts.dennis-e64.workers.dev';
     const API_BASE_LIST    = 'https://snf-list-clients.dennis-e64.workers.dev';
     const CLIENTS_LIST_PATH = '/';
 
-    // Groups endpoints
     const GROUPS_LIST_URL  = 'https://snf-list-groups.dennis-e64.workers.dev';
     const GROUPS_ADD_URL   = 'https://snf-add-group.dennis-e64.workers.dev';
 
-    // Group ROI endpoint (list)
-    const ROI_LIST_URL     = 'https://snf-list-group-roi.dennis-e64.workers.dev';
+    // ROI list (returns rows + distincts; supports ?group_name=&year=)
+    const ROI_LIST_URL     = 'https://snf-list-group-roi.dennis-e64.workers.dev/';
 
     // ===== Tabs =====
     const tabs = document.querySelectorAll('.tab');
@@ -284,7 +289,7 @@
       if (which === 'roi')     initAndLoadROI();
     }));
 
-    // ===== Modal helpers (Clients) =====
+    // ===== Clients =====
     const modalBackdrop = document.getElementById('add-modal-backdrop');
     const openModal = () => { modalBackdrop.style.display='flex'; modalBackdrop.setAttribute('aria-hidden','false'); };
     const closeModal = () => { modalBackdrop.style.display='none'; modalBackdrop.setAttribute('aria-hidden','true'); resetForm(); };
@@ -294,7 +299,6 @@
     modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalBackdrop.style.display === 'flex') closeModal(); });
 
-    // ===== Referral search (Clients) =====
     const refInput   = document.getElementById('ref-search');
     const refList    = document.getElementById('ref-list');
     const refGhlId   = document.getElementById('ref-ghl-id');
@@ -313,7 +317,6 @@
       if (q.length < 2) { refList.style.display='none'; return; }
       acTimer = setTimeout(async () => { await loadContactMatches(q); }, 250);
     });
-
     refPillX.addEventListener('click', clearReferrer);
     refSkip.addEventListener('click', clearReferrer);
 
@@ -376,7 +379,6 @@
       }
     }
 
-    // ===== Save Client =====
     document.getElementById('btn-save').addEventListener('click', async () => {
       const form = document.getElementById('add-client-form');
       const fd = new FormData(form);
@@ -415,7 +417,6 @@
       setMsg('', false);
     }
 
-    // ===== Clients list =====
     const clientsStatus = document.getElementById('clients-status');
     const clientsTableWrap = document.getElementById('clients-table-wrap');
     const clientsTable = document.getElementById('clients-table');
@@ -498,7 +499,7 @@
         .replace(/\b([a-z])/g, (m)=>m.toUpperCase());
     }
 
-    // ===== Groups logic =====
+    // ===== Groups (sortable) =====
     const groupsTbody       = document.getElementById('groups-tbody');
     const btnToggleAddGroup = document.getElementById('btn-toggle-add-group');
     const btnRefreshGroups  = document.getElementById('btn-refresh-groups');
@@ -706,9 +707,8 @@
 
         grpMsg.className='success';
         grpMsg.textContent='Saved!';
-        console.debug('GROUPS ADD OK', { requestPayload: payload, responseJson: d });
-
         await loadGroups();
+
         // Close form and return focus to Add button for rapid entry
         showGroupForm(false);
         document.getElementById('btn-toggle-add-group')?.focus();
@@ -720,94 +720,117 @@
       }
     }
 
-    // ===== Group ROI logic =====
+    // ===== Group ROI (server-side filtering) =====
     const roiStatus = document.getElementById('roi-status');
     const roiTbody  = document.getElementById('roi-tbody');
     const roiFilterGroup = document.getElementById('roi-filter-group');
     const roiFilterYear  = document.getElementById('roi-filter-year');
     const btnLoadRoi     = document.getElementById('btn-load-roi');
+    const btnRetryRoi    = document.getElementById('btn-retry-roi');
 
-    let roiAllRows = []; // raw cache
+    let roiDistinctLoaded = false;
 
     async function initAndLoadROI(){
-      // If already loaded once, just refresh table with current filters
-      if (roiAllRows.length) {
-        populateRoiFiltersFromRows(roiAllRows);
-        renderRoiTable();
-        return;
+      if (!roiDistinctLoaded) {
+        await fetchRoiDistinctsAndInitialRows();
+        roiDistinctLoaded = true;
+      } else {
+        await loadRoiRowsFromFilters(); // keep fresh if user returns
       }
-      await fetchRoiRows();
     }
 
-    async function fetchRoiRows(){
+    async function fetchRoiDistinctsAndInitialRows(){
       roiStatus.textContent = 'Loading ROI…';
       roiTbody.innerHTML = `<tr><td class="empty" colspan="6">Loading…</td></tr>`;
+      btnRetryRoi.style.display = 'none';
       try{
-        const r = await fetch(ROI_LIST_URL, {
+        // First call without filters to get rows + distincts
+        const res = await fetch(ROI_LIST_URL, {
           method:'GET',
           headers:{Accept:'application/json'},
           cache:'no-store',
           mode:'cors'
         });
-        const raw = await r.text();
-        let d = null; try { d = JSON.parse(raw); } catch {}
-
-        if (!r.ok) {
-          const msg = d?.error || d?.message || raw || `HTTP ${r.status}`;
-          roiStatus.textContent = `Error: ${msg}`;
+        const raw = await res.text(); let data = null; try { data = JSON.parse(raw); } catch {}
+        if (!res.ok) {
+          const msg = (data?.error || data?.message || raw || `HTTP ${res.status}`);
+          roiStatus.textContent = `Error fetching ROI: ${msg}`;
           roiTbody.innerHTML = `<tr><td class="empty" colspan="6" style="color:var(--danger)">Error: ${esc(msg)}</td></tr>`;
-          console.error('ROI LIST ERROR', { status:r.status, raw, json:d });
+          btnRetryRoi.style.display = '';
+          console.error('ROI LIST ERROR', { status: res.status, raw, json: data });
           return;
         }
-
-        roiAllRows = Array.isArray(d?.rows) ? d.rows : [];
-        populateRoiFiltersFromRows(roiAllRows);
-        renderRoiTable();
+        populateRoiFilters(data?.distinct);
+        renderRoiTableRows(Array.isArray(data?.rows) ? data.rows : []);
       }catch(e){
-        roiStatus.textContent = `Error: ${e.message||String(e)}`;
-        roiTbody.innerHTML = `<tr><td class="empty" colspan="6" style="color:var(--danger)">Error: ${esc(e.message||String(e))}</td></tr>`;
+        roiStatus.textContent = `Network/JS error: ${e.message||String(e)}`;
+        roiTbody.innerHTML = `<tr><td class="empty" colspan="6" style="color:var(--danger)">Network/JS error: ${esc(e.message||String(e))}</td></tr>`;
+        btnRetryRoi.style.display = '';
         console.error('ROI LIST EXCEPTION', e);
       }
     }
 
-    function populateRoiFiltersFromRows(rows){
-      // group_name
-      const groups = Array.from(new Set(rows.map(r => (r.group_name||'').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-      const years  = Array.from(new Set(rows.map(r => r.year).filter(v => v !== null && v !== undefined))).sort((a,b)=>Number(a)-Number(b));
+    function populateRoiFilters(distinct){
+      const groups = (distinct?.group_names || []).slice();
+      const years  = (distinct?.years || []).slice();
 
-      // Reset options (keep ALL at top)
       roiFilterGroup.innerHTML = '<option value="ALL">ALL</option>';
-      groups.forEach(g => {
-        const o=document.createElement('option'); o.value=g; o.textContent=g; roiFilterGroup.appendChild(o);
-      });
+      groups.forEach(g => { const o=document.createElement('option'); o.value=g; o.textContent=g; roiFilterGroup.appendChild(o); });
 
       roiFilterYear.innerHTML = '<option value="ALL">ALL</option>';
-      years.forEach(y => {
-        const o=document.createElement('option'); o.value=String(y); o.textContent=String(y); roiFilterYear.appendChild(o);
-      });
+      years.forEach(y => { const o=document.createElement('option'); o.value=String(y); o.textContent=String(y); roiFilterYear.appendChild(o); });
 
-      // Keep defaults to ALL
       roiFilterGroup.value = 'ALL';
       roiFilterYear.value  = 'ALL';
     }
 
-    function renderRoiTable(){
-      const selGroup = roiFilterGroup.value;
-      const selYear  = roiFilterYear.value;
+    async function loadRoiRowsFromFilters(){
+      const group = roiFilterGroup.value;
+      const year  = roiFilterYear.value;
 
-      const filtered = roiAllRows.filter(r => {
-        const okGroup = (selGroup === 'ALL') || ((r.group_name||'') === selGroup);
-        const okYear  = (selYear === 'ALL')  || (String(r.year) === String(selYear));
-        return okGroup && okYear;
-      });
+      roiStatus.textContent = 'Loading…';
+      roiTbody.innerHTML = `<tr><td class="empty" colspan="6">Loading…</td></tr>`;
+      btnRetryRoi.style.display = 'none';
 
-      roiStatus.textContent = filtered.length ? `Loaded ${filtered.length} record${filtered.length===1?'':'s'}.` : 'No records found.';
-      if (!filtered.length) {
+      try{
+        // Build URL with server-side filters
+        const u = new URL(ROI_LIST_URL);
+        if (group && group !== 'ALL') u.searchParams.set('group_name', group);
+        if (year && year !== 'ALL')   u.searchParams.set('year', year);
+
+        const res = await fetch(u.toString(), {
+          method:'GET',
+          headers:{Accept:'application/json'},
+          cache:'no-store',
+          mode:'cors'
+        });
+
+        const raw = await res.text(); let data = null; try { data = JSON.parse(raw); } catch {}
+        if (!res.ok) {
+          const msg = (data?.error || data?.message || raw || `HTTP ${res.status}`);
+          roiStatus.textContent = `Error fetching ROI: ${msg}`;
+          roiTbody.innerHTML = `<tr><td class="empty" colspan="6" style="color:var(--danger)">Error: ${esc(msg)}</td></tr>`;
+          btnRetryRoi.style.display = '';
+          console.error('ROI FILTER ERROR', { status: res.status, raw, json: data, group, year });
+          return;
+        }
+
+        renderRoiTableRows(Array.isArray(data?.rows) ? data.rows : []);
+      }catch(e){
+        roiStatus.textContent = `Network/JS error: ${e.message||String(e)}`;
+        roiTbody.innerHTML = `<tr><td class="empty" colspan="6" style="color:var(--danger)">Network/JS error: ${esc(e.message||String(e))}</td></tr>`;
+        btnRetryRoi.style.display = '';
+        console.error('ROI FILTER EXCEPTION', e);
+      }
+    }
+
+    function renderRoiTableRows(rows){
+      roiStatus.textContent = rows.length ? `Loaded ${rows.length} record${rows.length===1?'':'s'}.` : 'No records found.';
+      if (!rows.length) {
         roiTbody.innerHTML = `<tr><td class="empty" colspan="6">No records found.</td></tr>`;
         return;
       }
-
-      roiTbody.innerHTML = filtered.map(r => `
+      roiTbody.innerHTML = rows.map(r => `
         <tr>
           <td>${esc(r.group_name||'')}</td>
           <td>${esc(r.year ?? '')}</td>
@@ -819,12 +842,10 @@
       `).join('');
     }
 
-    btnLoadRoi.addEventListener('click', () => {
-      // If you later add server-side filtering, you can refetch here with query params.
-      renderRoiTable();
-    });
+    document.getElementById('btn-load-roi').addEventListener('click', loadRoiRowsFromFilters);
+    btnRetryRoi.addEventListener('click', fetchRoiDistinctsAndInitialRows);
 
-    // ---- formatters ----
+    // ---- formatters / utils ----
     const usdFmt = new Intl.NumberFormat('en-US', { style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2 });
     function fmtMoneyUSD(v){
       if(v==null || v==='') return '';
@@ -836,19 +857,16 @@
       if(v==null || v==='') return '';
       const n = Number(v);
       if(!Number.isFinite(n)) return '';
-      // Accept either 0–1 (fraction) or 0–100 (percent). If >1, assume already a percent.
-      if (Math.abs(n) <= 1) return pctIntl.format(n);  // 0.125 -> 12.50%
-      return `${n.toFixed(2)}%`;                       // 12.5 -> 12.50%
+      // Accept 0–1 (fraction) or 0–100 (percent)
+      if (Math.abs(n) <= 1) return pctIntl.format(n);
+      return `${n.toFixed(2)}%`;
     }
     function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
     // ===== Init =====
     document.getElementById('btn-refresh-clients').addEventListener('click', loadClients);
     document.getElementById('btn-refresh-groups').addEventListener('click', loadGroups);
-    document.getElementById('btn-save-group'); // wired above
-    // Start on Clients
     loadClients();
-    // Ensure Groups form starts closed & button text is correct
     showGroupForm(false);
   </script>
 </body>
