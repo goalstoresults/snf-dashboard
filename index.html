@@ -658,95 +658,108 @@
     document.getElementById('btn-refresh-roi').addEventListener('click', initRoiFilters);
     document.getElementById('btn-load-roi').addEventListener('click', loadROI);
 
-    async function initRoiFilters(){
-      roiStatus.textContent = 'Loading filters…';
-      // Groups from list-groups
-      try {
-        const resG = await fetch(new URL('/', API_LIST_GROUPS), { headers:{'Accept':'application/json'} });
-        const txtG = await resG.text(); let dataG = null; try{ dataG = JSON.parse(txtG); }catch{}
-        if (resG.ok && dataG && Array.isArray(dataG.rows)) {
-          // Reset group select
-          roiGroupSel.innerHTML = '<option value="ALL">ALL</option>';
-          dataG.rows
-            .map(r=>r.group_name)
-            .filter(Boolean)
-            .sort((a,b)=>a.localeCompare(b))
-            .forEach(name=>{
-              const opt=document.createElement('option'); opt.value=name; opt.textContent=name; roiGroupSel.appendChild(opt);
-            });
-        }
-      } catch(e){ /* non-fatal */ }
+async function initRoiFilters(){
+  roiStatus.textContent = 'Loading filters…';
 
-      // Years from ROI endpoint (fetch all then dedupe)
-      try {
-        const resY = await fetch(new URL('/', API_GROUP_ROI), { headers:{'Accept':'application/json'} });
-        const txtY = await resY.text(); let dataY=null; try{ dataY=JSON.parse(txtY);}catch{}
-        if (resY.ok && dataY && Array.isArray(dataY.rows)) {
-          const years = Array.from(new Set(dataY.rows.map(r=>r.year).filter(Boolean))).sort((a,b)=>String(a).localeCompare(String(b)));
-          roiYearSel.innerHTML = '<option value="ALL">ALL</option>';
-          years.forEach(y=>{
-            const opt=document.createElement('option'); opt.value=String(y); opt.textContent=String(y); roiYearSel.appendChild(opt);
-          });
-        }
-      } catch(e){ /* non-fatal */ }
-      roiStatus.textContent = 'Filters ready. Click Load.';
+  try {
+    // --- Groups ---
+    const resG = await fetch(API_LIST_GROUPS, { headers:{'Accept':'application/json'} });
+    const txtG = await resG.text(); let dataG = null; try{ dataG = JSON.parse(txtG); }catch{}
+    if (resG.ok && dataG && Array.isArray(dataG.rows)) {
+      roiGroupSel.innerHTML = '<option value="ALL">ALL</option>';
+      dataG.rows
+        .map(r=>r.group_name)
+        .filter(Boolean)
+        .sort((a,b)=>a.localeCompare(b))
+        .forEach(name=>{
+          const opt=document.createElement('option'); 
+          opt.value=name; 
+          opt.textContent=name; 
+          roiGroupSel.appendChild(opt);
+        });
     }
 
-    async function loadROI(){
-      roiStatus.textContent = 'Loading ROI…';
-      roiTableWrap.style.display='none';
-      roiTable.innerHTML='';
-
-      try{
-        const grp = roiGroupSel.value || 'ALL';
-        const yr  = roiYearSel.value || 'ALL';
-        const url = new URL('/', API_GROUP_ROI);
-        if (grp && grp!=='ALL') url.searchParams.set('group', grp);
-        if (yr && yr!=='ALL')   url.searchParams.set('year', yr);
-        const res = await fetch(url.toString(), { headers:{'Accept':'application/json'} });
-        const txt = await res.text(); let data=null; try{ data=JSON.parse(txt);}catch{}
-        if (!res.ok) throw new Error((data && (data.error||data.message)) || txt || `HTTP ${res.status}`);
-
-        let rows = (data && data.rows) || [];
-        // default sort by group_name A→Z then year asc
-        rows.sort((a,b)=>{
-          const gn = (a.group_name||'').localeCompare(b.group_name||''); if (gn!==0) return gn;
-          return String(a.year||'').localeCompare(String(b.year||''));
-        });
-
-        roiStatus.textContent = rows.length ? `Loaded ${rows.length} row${rows.length===1?'':'s'}.` : 'No rows found.';
-        if (!rows.length) return;
-
-        // Build table
-        const columns = [
-          { key:'group_name', label:'Group Name' },
-          { key:'year', label:'Year' },
-          { key:'renewal_date', label:'Renewal Date', fmt:(v)=> v?String(v).slice(0,10):'' },
-          { key:'renewal_amount', label:'Renewal Amount', fmt:(v)=> fmtCurrency(v) },
-          { key:'referral_amount', label:'Referral Amount', fmt:(v)=> fmtCurrency(v) },
-          { key:'roi', label:'ROI', fmt:(v)=> fmtPercent(v) },
-        ];
-        const thead = document.createElement('thead');
-        const trh = document.createElement('tr');
-        columns.forEach(c=>{ const th=document.createElement('th'); th.textContent=c.label; trh.appendChild(th); });
-        thead.appendChild(trh);
-        const tbody = document.createElement('tbody');
-        rows.forEach(r=>{
-          const tr=document.createElement('tr');
-          columns.forEach(c=>{
-            const td=document.createElement('td');
-            const raw = r[c.key];
-            td.innerHTML = (c.fmt? c.fmt(raw) : (raw ?? '')) || '<span class="muted">—</span>';
-            tr.appendChild(td);
-          });
-          tbody.appendChild(tr);
-        });
-        roiTable.appendChild(thead); roiTable.appendChild(tbody);
-        roiTableWrap.style.display='';
-      } catch(e){
-        roiStatus.textContent = `Error loading ROI: ${e.message}`;
-      }
+    // --- Years ---
+    const resY = await fetch(API_GROUP_ROI, { headers:{'Accept':'application/json'} });
+    const txtY = await resY.text(); let dataY=null; try{ dataY=JSON.parse(txtY);}catch{}
+    if (resY.ok && dataY && Array.isArray(dataY.rows)) {
+      const years = [...new Set(dataY.rows.map(r=>r.year).filter(Boolean))].sort();
+      roiYearSel.innerHTML = '<option value="ALL">ALL</option>';
+      years.forEach(y=>{
+        const opt=document.createElement('option'); 
+        opt.value=String(y); 
+        opt.textContent=String(y); 
+        roiYearSel.appendChild(opt);
+      });
     }
+
+    roiStatus.textContent = 'Filters ready. Click Load.';
+  } catch(e){ 
+    roiStatus.textContent = 'Error loading filters: ' + e.message;
+  }
+}
+
+async function loadROI(){
+  roiStatus.textContent = 'Loading ROI…';
+  roiTableWrap.style.display='none';
+  roiTable.innerHTML='';
+
+  try{
+    const grp = roiGroupSel.value || 'ALL';
+    const yr  = roiYearSel.value || 'ALL';
+    // ✅ FIXED: no new URL('/') — prevents double slash and query issues
+    let url = API_GROUP_ROI;
+    const params = [];
+    if (grp !== 'ALL') params.push(`group=${encodeURIComponent(grp)}`);
+    if (yr !== 'ALL') params.push(`year=${encodeURIComponent(yr)}`);
+    if (params.length) url += '?' + params.join('&');
+
+    const res = await fetch(url, { headers:{'Accept':'application/json'} });
+    const txt = await res.text(); let data=null; try{ data=JSON.parse(txt);}catch{}
+    if (!res.ok) throw new Error((data && (data.error||data.message)) || txt || `HTTP ${res.status}`);
+
+    const rows = (data && data.rows) || [];
+    rows.sort((a,b)=>{
+      const gn = (a.group_name||'').localeCompare(b.group_name||'');
+      return gn!==0 ? gn : String(a.year||'').localeCompare(String(b.year||''));
+    });
+
+    roiStatus.textContent = rows.length ? `Loaded ${rows.length} row${rows.length===1?'':'s'}.` : 'No rows found.';
+    if (!rows.length) return;
+
+    const columns = [
+      { key:'group_name', label:'Group Name' },
+      { key:'year', label:'Year' },
+      { key:'renewal_date', label:'Renewal Date', fmt:v=>v?String(v).slice(0,10):'' },
+      { key:'renewal_amount', label:'Renewal Amount', fmt:fmtCurrency },
+      { key:'referral_amount', label:'Referral Amount', fmt:fmtCurrency },
+      { key:'roi', label:'ROI', fmt:fmtPercent },
+    ];
+
+    const thead = document.createElement('thead');
+    const trh = document.createElement('tr');
+    columns.forEach(c=>{ const th=document.createElement('th'); th.textContent=c.label; trh.appendChild(th); });
+    thead.appendChild(trh);
+
+    const tbody = document.createElement('tbody');
+    rows.forEach(r=>{
+      const tr=document.createElement('tr');
+      columns.forEach(c=>{
+        const td=document.createElement('td');
+        const raw = r[c.key];
+        td.innerHTML = (c.fmt ? c.fmt(raw) : (raw ?? '')) || '<span class="muted">—</span>';
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+
+    roiTable.appendChild(thead);
+    roiTable.appendChild(tbody);
+    roiTableWrap.style.display='';
+  } catch(e){
+    roiStatus.textContent = `Error loading ROI: ${e.message}`;
+  }
+}
 
     // ====== CONTACTS ======
     const contactsStatus = document.getElementById('contacts-status');
