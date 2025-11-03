@@ -7,57 +7,65 @@
   <style>
     :root{
       --bg:#f7fafc; --card:#fff; --text:#1f2937; --muted:#6b7280; --border:#e5e7eb;
-      --accent:#2563eb; --accent-2:#059669; --danger:#dc2626;
+      --accent:#2563eb; --accent-2:#059669; --danger:#dc2626; --warn:#b45309;
     }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--text);
       font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
-    header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+    header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:#fff;position:sticky;top:0;z-index:10}
     .brand{font-weight:700}
-    .tabs{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px 0}
+    #version{font-size:12px;color:var(--muted)}
+    .tabs{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px 0;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:9}
     .tab{padding:8px 12px;border:1px solid var(--border);border-bottom:none;background:#fdfdfd;
       border-top-left-radius:10px;border-top-right-radius:10px;color:var(--muted);cursor:pointer;user-select:none}
     .tab.active{background:var(--card);color:var(--text);font-weight:600}
     main{padding:18px 20px}
     .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
     .row{display:flex;flex-wrap:wrap;gap:12px}
-    .row-nowrap{display:flex;flex-wrap:nowrap;gap:12px;align-items:flex-end}
     .grow{flex:1 1 220px}
     .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid var(--border);
       background:#fff;cursor:pointer}
     .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .btn.success{background:var(--accent-2);color:#fff;border-color:var(--accent-2)}
+    .btn.warn{background:#fff;color:var(--warn);border-color:var(--warn)}
     .btn.small{padding:6px 10px}
     .btn:disabled{opacity:.6;cursor:not-allowed}
-    .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:12px}
+    .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
     .muted{color:var(--muted)}
     .input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff}
     .label{font-size:12px;color:var(--muted);margin-bottom:6px}
-    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
-    table{width:100%;border-collapse:separate;border-spacing:0;background:#fff}
-    thead th{position:sticky;top:0;background:#f9fafb;border-bottom:1px solid var(--border);text-align:left;font-weight:600;padding:10px;white-space:nowrap}
-    tbody td{border-top:1px solid var(--border);padding:10px;vertical-align:top;white-space:nowrap}
-    tbody tr:nth-child(even){background:#fcfcfd}
-    .empty{padding:10px;color:var(--muted)}
-    th.sortable { cursor:pointer; user-select:none; }
-    th.sortable .hdr { display:flex; align-items:center; gap:6px; }
-    th.sortable .arrow { font-size:11px; color:var(--muted); }
-    th.sortable.active { color:var(--text); }
-    th.sortable.active .arrow { color:var(--text); }
-    .filter-item{min-width:220px}
-    .filter-actions{display:flex;gap:8px;align-items:flex-end}
-    @media (max-width:780px){
-      .row-nowrap{flex-wrap:wrap}
-      .filter-item{min-width:160px}
-    }
-    #version{font-size:12px;color:var(--muted)}
     .error{color:var(--danger);font-size:12px;margin-top:6px}
     .success{color:var(--accent-2);font-size:12px;margin-top:6px}
+    .warntext{color:var(--warn);font-size:12px;margin-top:6px}
+    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px;background:#fff}
+    table{width:100%;border-collapse:separate;border-spacing:0;background:#fff}
+    thead th{position:sticky;top:0;background:#f9fafb;border-bottom:1px solid var(--border);text-align:left;font-weight:600;padding:10px;white-space:nowrap;cursor:pointer;user-select:none}
+    tbody td{border-top:1px solid var(--border);padding:10px;vertical-align:top;white-space:nowrap}
+    tbody tr:nth-child(even){background:#fcfcfd}
+    .sort-arrow{font-size:10px;margin-left:6px;color:var(--muted)}
+    .empty{padding:10px;color:var(--muted)}
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.2);display:none;align-items:center;justify-content:center;padding:16px;z-index:30}
+    .modal{background:#fff;border-radius:16px;max-width:780px;width:100%;border:1px solid var(--border);box-shadow:0 8px 28px rgba(0,0,0,.15)}
+    .modal header{border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .modal footer{display:flex;gap:10px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--border)}
+    .modal .content{padding:16px}
+    /* Autocomplete */
+    .ac-wrap{position:relative}
+    .ac-list{position:absolute;z-index:40;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--border);
+      border-radius:10px;max-height:240px;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.08);display:none}
+    .ac-item{padding:10px 12px;cursor:pointer}
+    .ac-item:hover{background:#f4f6fb}
+    .pill{display:inline-flex;align-items:center;gap:6px;background:#f1f5ff;color:#1e3a8a;border-radius:999px;padding:6px 10px;font-size:12px}
+    .pill .x{cursor:pointer}
+    .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:10px}
+    @media (max-width:640px){ .toolbar{flex-direction:column;align-items:flex-start;gap:8px} }
   </style>
 </head>
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.21</div>
+    <div id="version">SNF UI v0.24</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -69,15 +77,17 @@
   </div>
 
   <main>
-    <!-- Clients Panel (unchanged) -->
+    <!-- Clients Panel -->
     <section class="panel" id="panel-clients">
       <div class="toolbar">
         <div><strong>Clients</strong> <span class="muted">— add and manage clients</span></div>
         <div style="display:flex; gap:8px; align-items:center">
           <button class="btn" id="btn-refresh-clients">Refresh</button>
+          <!-- Add Client button ONLY on Clients tab -->
           <button class="btn primary" id="btn-add-client">+ Add Client</button>
         </div>
       </div>
+
       <div id="clients-status" class="muted" style="margin-bottom:8px">Loading clients…</div>
       <div class="table-wrap" id="clients-table-wrap" style="display:none">
         <table id="clients-table" aria-label="Clients"></table>
@@ -89,135 +99,100 @@
       <div class="muted">Payments tab placeholder.</div>
     </section>
 
-    <!-- Groups Panel (kept from v0.20) -->
+    <!-- Groups Panel -->
     <section class="panel" id="panel-groups" style="display:none">
       <div class="toolbar">
         <div><strong>Groups</strong> <span class="muted">— list and add groups</span></div>
         <div style="display:flex; gap:8px; align-items:center">
           <button class="btn" id="btn-refresh-groups">Refresh</button>
-          <button class="btn primary" id="btn-toggle-add-group" aria-pressed="false">+ Add Group</button>
+          <button class="btn success" id="btn-toggle-add-group">Add Group</button>
         </div>
       </div>
 
-      <div id="group-form-wrap" style="display:none; margin-bottom:12px;">
-        <div class="row">
-          <div class="grow">
-            <div class="label">Year</div>
-            <select class="input" id="grp-year"></select>
+      <!-- Add Group Form (collapsible) -->
+      <div id="add-group-wrap" class="panel" style="margin-bottom:12px; display:none; border:1px dashed var(--border);">
+        <form id="add-group-form" autocomplete="off">
+          <div class="row">
+            <div class="grow">
+              <div class="label">Year</div>
+              <select class="input" name="year" id="year-select" required></select>
+            </div>
+            <div class="grow">
+              <div class="label">Group Name</div>
+              <input class="input" name="group_name" id="group-name" placeholder="e.g., Divorce Professionals Network" required />
+            </div>
+            <div class="grow">
+              <div class="label">Date Started</div>
+              <input class="input" type="date" name="date_started" required />
+            </div>
+            <div class="grow">
+              <div class="label">Total Amount</div>
+              <input class="input" type="number" step="0.01" min="0" name="total_amount" placeholder="0.00" required />
+            </div>
           </div>
-          <div class="grow">
-            <div class="label">Group Name</div>
-            <input class="input" id="grp-name" placeholder="e.g., Spring 2025" />
+          <div id="group-form-msg" class="muted" style="margin-top:8px"></div>
+          <div style="margin-top:10px; display:flex; gap:8px;">
+            <button type="button" class="btn" id="btn-cancel-add-group">Cancel</button>
+            <button type="button" class="btn success" id="btn-save-group">Save Group</button>
           </div>
-          <div class="grow">
-            <div class="label">Date Started</div>
-            <input class="input" id="grp-date" type="date" />
-          </div>
-          <div class="grow">
-            <div class="label">Total Amount</div>
-            <input class="input" id="grp-amount" type="number" step="0.01" placeholder="0.00" />
-          </div>
-        </div>
-        <div class="row" style="margin-top:10px; justify-content:flex-end;">
-          <button class="btn" id="btn-cancel-group" style="display:none">Cancel</button>
-          <button class="btn primary" id="btn-save-group">Save Group</button>
-        </div>
-        <div id="group-form-msg" class="muted" style="margin-top:8px;"></div>
-        <hr style="margin:16px 0;border:none;border-top:1px solid var(--border);" />
+        </form>
       </div>
 
-      <div class="table-wrap">
-        <table id="groups-table" aria-label="Groups">
-          <thead>
-            <tr>
-              <th class="sortable" data-col="group_name"><span class="hdr">Group Name <span class="arrow">▲▼</span></span></th>
-              <th class="sortable" data-col="total_amount"><span class="hdr">Total Amount <span class="arrow">▲▼</span></span></th>
-              <th class="sortable" data-col="total_referral_amount"><span class="hdr">Total Referral Amount <span class="arrow">▲▼</span></span></th>
-              <th class="sortable" data-col="total_roi"><span class="hdr">Total ROI <span class="arrow">▲▼</span></span></th>
-              <th class="sortable" data-col="date_started"><span class="hdr">Date Started <span class="arrow">▲▼</span></span></th>
-            </tr>
-          </thead>
-          <tbody id="groups-tbody">
-            <tr><td class="empty" colspan="5">Loading…</td></tr>
-          </tbody>
-        </table>
+      <div id="groups-status" class="muted" style="margin-bottom:8px">Loading groups…</div>
+      <div class="table-wrap" id="groups-table-wrap" style="display:none">
+        <table id="groups-table" aria-label="Groups"></table>
       </div>
     </section>
 
-    <!-- Group ROI Panel (kept from v0.20) -->
+    <!-- Group ROI Panel -->
     <section class="panel" id="panel-roi" style="display:none">
       <div class="toolbar">
-        <div><strong>Group ROI</strong> <span class="muted">— filter by Group and Year</span></div>
-        <div class="row-nowrap" style="gap:10px">
-          <div class="filter-item">
-            <div class="label">Group Name</div>
-            <select class="input" id="roi-filter-group">
-              <option value="ALL">ALL</option>
-            </select>
-          </div>
-          <div class="filter-item">
-            <div class="label">Year</div>
-            <select class="input" id="roi-filter-year">
-              <option value="ALL">ALL</option>
-            </select>
-          </div>
-          <div class="filter-actions">
-            <button class="btn primary" id="btn-load-roi">Load</button>
-            <button class="btn" id="btn-retry-roi" style="display:none">Retry</button>
-          </div>
+        <div><strong>Group ROI</strong> <span class="muted">— filter by group and year</span></div>
+        <div style="display:flex; gap:8px; align-items:center">
+          <button class="btn" id="btn-refresh-roi">Refresh</button>
         </div>
       </div>
 
-      <div id="roi-status" class="muted" style="margin-bottom:8px">Loading ROI…</div>
-      <div class="table-wrap">
-        <table id="roi-table" aria-label="Group ROI">
-          <thead>
-            <tr>
-              <th>Group Name</th>
-              <th>Year</th>
-              <th>Renewal Date</th>
-              <th>Renewal Amount</th>
-              <th>Referral Amount</th>
-              <th>ROI</th>
-            </tr>
-          </thead>
-          <tbody id="roi-tbody">
-            <tr><td class="empty" colspan="6">Loading…</td></tr>
-          </tbody>
-        </table>
+      <div class="filters">
+        <div class="grow" style="max-width:260px;">
+          <div class="label">Group</div>
+          <select class="input" id="roi-group-select">
+            <option value="ALL">ALL</option>
+          </select>
+        </div>
+        <div class="grow" style="max-width:180px;">
+          <div class="label">Year</div>
+          <select class="input" id="roi-year-select">
+            <option value="ALL">ALL</option>
+          </select>
+        </div>
+        <div>
+          <button class="btn primary" id="btn-load-roi">Load</button>
+        </div>
+      </div>
+
+      <div id="roi-status" class="muted" style="margin-bottom:8px">Adjust filters and click Load.</div>
+      <div class="table-wrap" id="roi-table-wrap" style="display:none">
+        <table id="roi-table" aria-label="Group ROI"></table>
       </div>
     </section>
 
-    <!-- Contacts Panel (NEW) -->
+    <!-- Contacts Panel -->
     <section class="panel" id="panel-contacts" style="display:none">
       <div class="toolbar">
-        <div><strong>Contacts</strong> <span class="muted">— list of contacts</span></div>
+        <div><strong>Contacts</strong> <span class="muted">— shows group name via view</span></div>
         <div style="display:flex; gap:8px; align-items:center">
           <button class="btn" id="btn-refresh-contacts">Refresh</button>
         </div>
       </div>
-
       <div id="contacts-status" class="muted" style="margin-bottom:8px">Loading contacts…</div>
-      <div class="table-wrap">
-        <table id="contacts-table" aria-label="Contacts">
-          <thead>
-            <tr>
-              <th>First Name</th>
-              <th>Last Name</th>
-              <th>Group</th>
-              <th>Occupation Type</th>
-              <th>Referred Clients</th>
-            </tr>
-          </thead>
-          <tbody id="contacts-tbody">
-            <tr><td class="empty" colspan="5">Loading…</td></tr>
-          </tbody>
-        </table>
+      <div class="table-wrap" id="contacts-table-wrap" style="display:none">
+        <table id="contacts-table" aria-label="Contacts"></table>
       </div>
     </section>
   </main>
 
-  <!-- Add Client Modal (unchanged) -->
+  <!-- Add Client Modal -->
   <div class="modal-backdrop" id="add-modal-backdrop" role="dialog" aria-modal="true">
     <div class="modal" role="document">
       <header>
@@ -246,6 +221,7 @@
               <input class="input" name="phone" placeholder="+15555550123" />
             </div>
           </div>
+
           <div class="row">
             <div class="grow">
               <div class="label">Referred By (optional — type at least 2 characters)</div>
@@ -253,6 +229,7 @@
                 <input class="input" id="ref-search" placeholder="e.g., Smith, Jane  or  jane@company.com" />
                 <div class="ac-list" id="ref-list"></div>
               </div>
+              <!-- Hidden fields sent to Worker -->
               <input type="hidden" name="referred_by_id" id="ref-ghl-id" />
               <input type="hidden" name="referred_by_first_name" id="ref-first" />
               <input type="hidden" name="referred_by_last_name" id="ref-last" />
@@ -265,6 +242,7 @@
               </div>
             </div>
           </div>
+
           <div id="form-msg" class="muted" style="margin-top:10px"></div>
         </form>
       </div>
@@ -276,42 +254,131 @@
   </div>
 
   <script>
-    // ===== Worker base URLs =====
-    const API_BASE_ADD     = 'https://snf-add-client.dennis-e64.workers.dev';
-    const API_BASE_SEARCH  = 'https://snf-search-contacts.dennis-e64.workers.dev';
-    const API_BASE_LIST    = 'https://snf-list-clients.dennis-e64.workers.dev';
-    const CLIENTS_LIST_PATH = '/';
+    // ===== Config: Worker base URLs =====
+    const API_ADD_CLIENT     = 'https://snf-add-client.dennis-e64.workers.dev';
+    const API_SEARCH_CONTACT = 'https://snf-search-contacts.dennis-e64.workers.dev';
+    const API_LIST_CLIENTS   = 'https://snf-list-clients.dennis-e64.workers.dev';
 
-    const GROUPS_LIST_URL  = 'https://snf-list-groups.dennis-e64.workers.dev';
-    const GROUPS_ADD_URL   = 'https://snf-add-group.dennis-e64.workers.dev';
+    const API_LIST_GROUPS    = 'https://snf-list-groups.dennis-e64.workers.dev';
+    const API_ADD_GROUP      = 'https://snf-add-group.dennis-e64.workers.dev';
 
-    const ROI_LIST_URL     = 'https://snf-list-group-roi.dennis-e64.workers.dev/';
+    const API_LIST_CONTACTS  = 'https://snf-list-contacts.dennis-e64.workers.dev';
 
-    // NEW: Contacts list endpoint
-    const CONTACTS_LIST_URL = 'https://snf-list-contacts.dennis-e64.workers.dev/';
+    const API_GROUP_ROI      = 'https://snf-group-roi.dennis-e64.workers.dev'; // expects optional ?group= & year=
 
     // ===== Tabs =====
     const tabs = document.querySelectorAll('.tab');
     const panels = {
-      clients: document.getElementById('panel-clients'),
+      clients:  document.getElementById('panel-clients'),
       payments: document.getElementById('panel-payments'),
-      groups: document.getElementById('panel-groups'),
-      roi: document.getElementById('panel-roi'),
+      groups:   document.getElementById('panel-groups'),
+      roi:      document.getElementById('panel-roi'),
       contacts: document.getElementById('panel-contacts'),
     };
     tabs.forEach(t => t.addEventListener('click', () => {
       tabs.forEach(x => x.classList.remove('active'));
       t.classList.add('active');
       Object.values(panels).forEach(p => p.style.display='none');
-      const which = t.dataset.tab;
-      panels[which].style.display = '';
-      if (which === 'clients')  loadClients();
-      if (which === 'groups')   loadGroups();
-      if (which === 'roi')      initAndLoadROI();
-      if (which === 'contacts') loadContacts();
+      panels[t.dataset.tab].style.display = '';
     }));
 
-    // ===== Clients (unchanged key bits) =====
+    // ===== Utilities =====
+    const fmtCurrency = (n) => {
+      if (n === null || n === undefined || isNaN(n)) return '';
+      return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(n));
+    };
+    const fmtPercent = (n) => {
+      if (n === null || n === undefined || isNaN(n)) return '';
+      // Accept 0.25 as 25% or 25 as 25%
+      const val = Number(n);
+      const p = val > 1 ? val/100 : val;
+      return new Intl.NumberFormat('en-US',{style:'percent',minimumFractionDigits:2,maximumFractionDigits:2}).format(p);
+    };
+
+    // ====== CLIENTS ======
+    const clientsStatus = document.getElementById('clients-status');
+    const clientsTableWrap = document.getElementById('clients-table-wrap');
+    const clientsTable = document.getElementById('clients-table');
+    document.getElementById('btn-refresh-clients').addEventListener('click', loadClients);
+
+    async function loadClients(){
+      clientsStatus.textContent = 'Loading clients…';
+      clientsTableWrap.style.display = 'none';
+      clientsTable.innerHTML = '';
+      try {
+        const url = new URL('/', API_LIST_CLIENTS);
+        const res = await fetch(url.toString(), { headers: { 'Accept':'application/json' }});
+        const text = await res.text();
+        let data = null; try { data = JSON.parse(text); } catch {}
+        if (!res.ok) throw new Error((data && (data.error || data.message)) || text || `HTTP ${res.status}`);
+
+        const rows = (data && data.rows) || [];
+        clientsStatus.textContent = rows.length ? `Loaded ${rows.length} client${rows.length===1?'':'s'}.` : 'No clients found.';
+        if (!rows.length) return;
+
+        renderClientsTable(rows);
+        clientsTableWrap.style.display = '';
+      } catch (err){
+        clientsStatus.textContent = `Error loading clients: ${err.message}`;
+      }
+    }
+
+    function renderClientsTable(rows){
+      // Preferred columns (no IDs; referral names only)
+      const preferred = [
+        'first_name','last_name',
+        'email','phone',
+        'referred_by_first_name','referred_by_last_name',
+        'created_at','updated_at'
+      ];
+      const HIDE = new Set(['id','client_id','referred_by_id']); // Always hidden
+
+      const keySet = new Set();
+      rows.forEach(r => Object.keys(r || {}).forEach(k => { if (!HIDE.has(k)) keySet.add(k); }));
+      const allKeys = Array.from(keySet);
+      const ordered = [
+        ...preferred.filter(k => keySet.has(k)),
+        ...allKeys.filter(k => !preferred.includes(k)).sort((a,b)=> a.localeCompare(b))
+      ];
+
+      const thead = document.createElement('thead');
+      const trh = document.createElement('tr');
+      ordered.forEach(k => {
+        const th = document.createElement('th');
+        th.textContent = prettifyHeader(k);
+        trh.appendChild(th);
+      });
+      thead.appendChild(trh);
+
+      const tbody = document.createElement('tbody');
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        ordered.forEach(k => {
+          const td = document.createElement('td');
+          let v = r[k];
+          if (v === null || v === undefined) v = '';
+          if (Array.isArray(v)) v = v.join(', ');
+          if (typeof v === 'object' && v) v = JSON.stringify(v);
+          td.textContent = String(v);
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      clientsTable.innerHTML = '';
+      clientsTable.appendChild(thead);
+      clientsTable.appendChild(tbody);
+    }
+
+    function prettifyHeader(k){
+      return k
+        .replace(/_/g,' ')
+        .replace(/\b(id)\b/i, 'ID')
+        .replace(/\b(ghl)\b/i, 'GHL')
+        .replace(/\b([a-z])/g, (m)=>m.toUpperCase());
+    }
+
+    // ===== Clients Modal (Add) =====
     const modalBackdrop = document.getElementById('add-modal-backdrop');
     const openModal = () => { modalBackdrop.style.display='flex'; modalBackdrop.setAttribute('aria-hidden','false'); };
     const closeModal = () => { modalBackdrop.style.display='none'; modalBackdrop.setAttribute('aria-hidden','true'); resetForm(); };
@@ -356,20 +423,16 @@
       refList.innerHTML = '<div class="ac-item muted">Searching…</div>';
       refList.style.display = 'block';
       try {
-        const url = new URL('/snf-search-contacts', API_BASE_SEARCH);
+        const url = new URL('/snf-search-contacts', API_SEARCH_CONTACT);
         url.searchParams.set('q', q);
         url.searchParams.set('limit', '10');
-
         const res = await fetch(url.toString(), { method: 'GET', headers: { 'Accept': 'application/json' } });
         const txt = await res.text();
         let data = null; try { data = JSON.parse(txt); } catch {}
         if (!res.ok) throw new Error((data && (data.error || data.message)) || txt || `HTTP ${res.status}`);
 
         const rows = (data && data.rows) || [];
-        if (!rows.length) {
-          refList.innerHTML = '<div class="ac-item muted">No matches</div>';
-          return;
-        }
+        if (!rows.length) { refList.innerHTML = '<div class="ac-item muted">No matches</div>'; return; }
         rows.sort((a,b) => {
           const la = (a.last_name || '').toLowerCase();
           const lb = (b.last_name || '').toLowerCase();
@@ -405,30 +468,27 @@
       const form = document.getElementById('add-client-form');
       const fd = new FormData(form);
       const payload = Object.fromEntries(fd.entries());
-
       const missing = ['first_name','last_name'].filter(k => !payload[k]?.trim());
       if (missing.length) return setMsg('Please fill in First Name and Last Name.', true);
-
       try {
         setMsg('Saving…');
-        const res = await fetch(`${API_BASE_ADD}/snf-add-client`, {
+        const res = await fetch(`${API_ADD_CLIENT}/snf-add-client`, {
           method: 'POST',
           headers: { 'Content-Type':'application/json', 'Accept':'application/json' },
           body: JSON.stringify(payload)
         });
-        const txt = await res.text();
-        let data = null; try { data = JSON.parse(txt); } catch {}
+        const txt = await res.text(); let data = null; try { data = JSON.parse(txt); } catch {}
         if (!res.ok) {
           const msg = (data && (data.error || data.message)) || (txt && txt.trim()) || `HTTP ${res.status}`;
           throw new Error(msg);
         }
         setMsg('Client added successfully!', false, true);
+        // Close modal after success and refresh list
         setTimeout(() => { closeModal(); loadClients(); }, 600);
       } catch (e) {
         setMsg(e.message || 'Save failed', true);
       }
     });
-
     function setMsg(text, isError=false, isSuccess=false){
       formMsg.className = isError ? 'error' : (isSuccess ? 'success' : 'muted');
       formMsg.textContent = text;
@@ -439,456 +499,324 @@
       setMsg('', false);
     }
 
-    const clientsStatus = document.getElementById('clients-status');
-    const clientsTableWrap = document.getElementById('clients-table-wrap');
-    const clientsTable = document.getElementById('clients-table');
-    document.getElementById('btn-refresh-clients').addEventListener('click', loadClients);
+    // ====== GROUPS ======
+    const groupsStatus = document.getElementById('groups-status');
+    const groupsTableWrap = document.getElementById('groups-table-wrap');
+    const groupsTable = document.getElementById('groups-table');
+    const btnToggleAddGroup = document.getElementById('btn-toggle-add-group');
+    const addGroupWrap = document.getElementById('add-group-wrap');
+    const btnCancelAddGroup = document.getElementById('btn-cancel-add-group');
+    const btnSaveGroup = document.getElementById('btn-save-group');
+    const groupFormMsg = document.getElementById('group-form-msg');
+    const yearSelect = document.getElementById('year-select');
 
-    async function loadClients(){
-      clientsStatus.textContent = 'Loading clients…';
-      clientsTableWrap.style.display = 'none';
-      clientsTable.innerHTML = '';
+    // Populate Year dropdown (2025 → +10y ascending)
+    (function initYears(){
+      const start = 2025;
+      for (let y=start; y<=start+10; y++){
+        const opt = document.createElement('option');
+        opt.value = String(y);
+        opt.textContent = String(y);
+        yearSelect.appendChild(opt);
+      }
+    })();
+
+    document.getElementById('btn-refresh-groups').addEventListener('click', loadGroups);
+    btnToggleAddGroup.addEventListener('click', () => {
+      addGroupWrap.style.display = addGroupWrap.style.display === 'none' ? '' : 'none';
+    });
+    btnCancelAddGroup.addEventListener('click', () => {
+      document.getElementById('add-group-form').reset();
+      groupFormMsg.textContent = '';
+      addGroupWrap.style.display = 'none';
+    });
+    btnSaveGroup.addEventListener('click', saveGroup);
+
+    async function loadGroups(){
+      groupsStatus.textContent = 'Loading groups…';
+      groupsTableWrap.style.display = 'none';
+      groupsTable.innerHTML = '';
       try {
-        const url = new URL(CLIENTS_LIST_PATH, API_BASE_LIST);
+        const url = new URL('/', API_LIST_GROUPS);
         const res = await fetch(url.toString(), { headers: { 'Accept':'application/json' }});
         const text = await res.text();
         let data = null; try { data = JSON.parse(text); } catch {}
         if (!res.ok) throw new Error((data && (data.error || data.message)) || text || `HTTP ${res.status}`);
 
-        const rows = (data && data.rows) || [];
-        clientsStatus.textContent = rows.length ? `Loaded ${rows.length} client${rows.length===1?'':'s'}.` : 'No clients found.';
+        let rows = (data && data.rows) || [];
+        // default sort A→Z by group_name
+        rows.sort((a,b)=> (a.group_name||'').localeCompare(b.group_name||''));
+
+        groupsStatus.textContent = rows.length ? `Loaded ${rows.length} group${rows.length===1?'':'s'}.` : 'No groups found.';
         if (!rows.length) return;
 
-        renderClientsTable(rows);
-        clientsTableWrap.style.display = '';
+        renderGroupsTable(rows);
+        groupsTableWrap.style.display = '';
       } catch (err){
-        clientsStatus.textContent = `Error loading clients: ${err.message}`;
+        groupsStatus.textContent = `Error loading groups: ${err.message}`;
       }
     }
 
-    function renderClientsTable(rows){
-      const preferred = [
-        'first_name','last_name',
-        'email','phone',
-        'referred_by_first_name','referred_by_last_name',
-        'created_at','updated_at'
+    function renderGroupsTable(rows){
+      const head = [
+        { key:'group_name', label:'Group Name', type:'text' },
+        { key:'total_amount', label:'Total Amount', type:'currency' },
+        { key:'total_referral_amount', label:'Total Referral Amount', type:'currency' },
+        { key:'total_roi', label:'Total ROI', type:'percent' },
+        { key:'date_started', label:'Date Started', type:'date' },
       ];
-      const HIDE = new Set(['id','client_id','referred_by_id']);
 
-      const keySet = new Set();
-      rows.forEach(r => Object.keys(r || {}).forEach(k => { if (!HIDE.has(k)) keySet.add(k); }));
-
-      const allKeys = Array.from(keySet);
-      const ordered = [
-        ...preferred.filter(k => keySet.has(k)),
-        ...allKeys.filter(k => !preferred.includes(k)).sort((a,b)=> a.localeCompare(b))
-      ];
+      let sortKey = 'group_name';
+      let sortAsc = true;
 
       const thead = document.createElement('thead');
       const trh = document.createElement('tr');
-      ordered.forEach(k => {
+      head.forEach(h => {
         const th = document.createElement('th');
-        th.textContent = prettifyHeader(k);
+        th.textContent = h.label;
+        th.classList.add('sortable');
+        const arrow = document.createElement('span'); arrow.className='sort-arrow'; arrow.textContent='▲';
+        th.appendChild(arrow);
+        th.onclick = () => {
+          if (sortKey === h.key) { sortAsc = !sortAsc; }
+          else { sortKey = h.key; sortAsc = true; }
+          const multiplier = sortAsc ? 1 : -1;
+          rows.sort((a,b)=>{
+            const va = a[sortKey]; const vb = b[sortKey];
+            if (va == null && vb == null) return 0;
+            if (va == null) return 1;
+            if (vb == null) return -1;
+            if (typeof va === 'number' && typeof vb === 'number') return (va - vb)*multiplier;
+            return String(va).localeCompare(String(vb)) * multiplier;
+          });
+          renderBody();
+          arrow.textContent = sortAsc ? '▲' : '▼';
+          // reset other headers arrows
+          Array.from(thead.querySelectorAll('.sort-arrow')).forEach(el => { if (el!==arrow) el.textContent='▲'; });
+        };
         trh.appendChild(th);
       });
       thead.appendChild(trh);
 
       const tbody = document.createElement('tbody');
-      rows.forEach(r => {
-        const tr = document.createElement('tr');
-        ordered.forEach(k => {
-          const td = document.createElement('td');
-          let v = r[k];
-          if (v === null || v === undefined) v = '';
-          if (Array.isArray(v)) v = v.join(', ');
-          if (typeof v === 'object' && v) v = JSON.stringify(v);
-          td.textContent = String(v);
-          tr.appendChild(td);
+      function renderBody(){
+        tbody.innerHTML = '';
+        rows.forEach(r=>{
+          const tr = document.createElement('tr');
+          head.forEach(h=>{
+            const td=document.createElement('td');
+            let v=r[h.key];
+            if (h.type==='currency') v = (v==null||v==='')?'':fmtCurrency(v);
+            else if (h.type==='percent') v = (v==null||v==='')?'':fmtPercent(v);
+            else if (h.type==='date' && v) v = String(v).slice(0,10);
+            td.innerHTML = (v==null||v==='')?'<span class="muted">—</span>':String(v);
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
         });
-        tbody.appendChild(tr);
-      });
-
-      clientsTable.innerHTML = '';
-      clientsTable.appendChild(thead);
-      clientsTable.appendChild(tbody);
-    }
-
-    function prettifyHeader(k){
-      return k
-        .replace(/_/g,' ')
-        .replace(/\b(id)\b/i, 'ID')
-        .replace(/\b(ghl)\b/i, 'GHL')
-        .replace(/\b([a-z])/g, (m)=>m.toUpperCase());
-    }
-
-    // ===== Groups (existing behavior from v0.20) =====
-    const groupsTbody       = document.getElementById('groups-tbody');
-    const btnToggleAddGroup = document.getElementById('btn-toggle-add-group');
-    const btnRefreshGroups  = document.getElementById('btn-refresh-groups');
-    const grpFormWrap       = document.getElementById('group-form-wrap');
-    const grpYear   = document.getElementById('grp-year');
-    const grpName   = document.getElementById('grp-name');
-    const grpDate   = document.getElementById('grp-date');
-    const grpAmount = document.getElementById('grp-amount');
-    const grpMsg    = document.getElementById('group-form-msg');
-
-    let groupsData = [];
-    let groupSort = { col: 'group_name', dir: 'asc' };
-
-    function setAddGroupButtonState(open){
-      const btn = btnToggleAddGroup;
-      btn.setAttribute('aria-pressed', open ? 'true' : 'false');
-      if (open) { btn.textContent = 'Cancel Add'; btn.classList.remove('primary'); }
-      else { btn.textContent = '+ Add Group'; btn.classList.add('primary'); }
-    }
-    function showGroupForm(open){
-      if (open) { grpFormWrap.style.display = 'block'; grpMsg.textContent = ''; }
-      else { grpFormWrap.style.display = 'none'; grpMsg.textContent=''; grpName.value=''; grpDate.value=''; grpAmount.value=''; }
-      setAddGroupButtonState(open);
-    }
-
-    btnToggleAddGroup.addEventListener('click', () => {
-      const open = grpFormWrap.style.display !== 'block';
-      showGroupForm(open);
-    });
-    document.getElementById('btn-cancel-group').addEventListener('click', (e) => {
-      e.preventDefault();
-      showGroupForm(false);
-    });
-
-    (function initYears(){
-      for(let y=2025; y<2025+10; y++){
-        const o=document.createElement('option');
-        o.value=y; o.textContent=y;
-        grpYear.appendChild(o);
       }
-    })();
+      renderBody();
 
-    btnRefreshGroups.addEventListener('click', loadGroups);
-    document.getElementById('btn-save-group').addEventListener('click', submitAddGroup);
+      groupsTable.innerHTML='';
+      groupsTable.appendChild(thead);
+      groupsTable.appendChild(tbody);
+    }
 
-    async function loadGroups(){
-      groupsTbody.innerHTML = `<tr><td class="empty" colspan="5">Loading…</td></tr>`;
+    async function saveGroup(){
+      const form = document.getElementById('add-group-form');
+      const fd = new FormData(form);
+      const payload = Object.fromEntries(fd.entries());
+      if (!payload.group_name || !payload.year || !payload.date_started || !payload.total_amount){
+        groupFormMsg.className='error'; groupFormMsg.textContent='Please complete all fields.'; return;
+      }
       try{
-        const r = await fetch(GROUPS_LIST_URL, {
-          method:'GET',
-          headers:{Accept:'application/json'},
-          cache:'no-store',
-          mode:'cors'
+        groupFormMsg.className='muted'; groupFormMsg.textContent='Saving…';
+        const res = await fetch(`${API_ADD_GROUP}/snf-add-group`, {
+          method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'},
+          body: JSON.stringify(payload)
         });
-        const raw = await r.text();
-        let d = null; try { d = JSON.parse(raw); } catch {}
-
-        if (!r.ok) {
-          const msg = d?.error || d?.message || raw || `HTTP ${r.status}`;
-          groupsTbody.innerHTML = `<tr><td class="empty" colspan="5" style="color:var(--danger)">Error: ${esc(msg)}</td></tr>`;
-          console.error('GROUPS LIST ERROR', { status:r.status, raw, json:d });
-          return;
+        const txt = await res.text(); let data=null; try{ data=JSON.parse(txt); } catch{};
+        if (!res.ok){
+          const msg = (data && (data.error||data.message)) || (txt && txt.trim()) || `HTTP ${res.status}`;
+          throw new Error(msg);
         }
-
-        groupsData = Array.isArray(d?.rows) ? d.rows : [];
-        renderGroupsTable();
-        wireGroupHeaderClicks();
-      }catch(e){
-        groupsTbody.innerHTML = `<tr><td class="empty" colspan="5" style="color:var(--danger)">Error: ${esc(e.message||String(e))}</td></tr>`;
-        console.error('GROUPS LIST EXCEPTION', e);
+        groupFormMsg.className='success'; groupFormMsg.textContent='Group added successfully!';
+        setTimeout(()=>{
+          form.reset(); groupFormMsg.textContent=''; addGroupWrap.style.display='none'; loadGroups();
+        }, 600);
+      } catch(e){
+        groupFormMsg.className='error'; groupFormMsg.textContent=e.message || 'Save failed';
       }
     }
 
-    function wireGroupHeaderClicks(){
-      const ths = document.querySelectorAll('#groups-table thead th.sortable');
-      ths.forEach(th => {
-        th.onclick = () => {
-          const col = th.getAttribute('data-col');
-          if (!col) return;
-          if (groupSort.col === col) {
-            groupSort.dir = (groupSort.dir === 'asc') ? 'desc' : 'asc';
-          } else {
-            groupSort.col = col;
-            groupSort.dir = 'asc';
-          }
-          renderGroupsTable();
-        };
-      });
-    }
-
-    function renderGroupsTable(){
-      const rows = [...groupsData].sort((a,b) => compareGroupRows(a,b, groupSort.col, groupSort.dir));
-      if (!rows.length){
-        groupsTbody.innerHTML = `<tr><td class="empty" colspan="5">No groups found.</td></tr>`;
-      } else {
-        groupsTbody.innerHTML = rows.map(g => `
-          <tr>
-            <td>${esc(g.group_name||'')}</td>
-            <td>${fmtMoneyUSD(g.total_amount)}</td>
-            <td>${fmtMoneyUSD(g.total_referral_amount)}</td>
-            <td>${fmtPercent(g.total_roi)}</td>
-            <td>${esc(g.date_started||'')}</td>
-          </tr>
-        `).join('');
-      }
-      updateGroupHeaderArrows();
-    }
-
-    function updateGroupHeaderArrows(){
-      const ths = document.querySelectorAll('#groups-table thead th.sortable');
-      ths.forEach(th => {
-        const col = th.getAttribute('data-col');
-        const arrow = th.querySelector('.arrow');
-        th.classList.toggle('active', col === groupSort.col);
-        if (arrow) {
-          if (col === groupSort.col) {
-            arrow.textContent = groupSort.dir === 'asc' ? '▲' : '▼';
-          } else {
-            arrow.textContent = '▲▼';
-          }
-        }
-      });
-    }
-
-    function compareGroupRows(a, b, col, dir){
-      const mul = dir === 'desc' ? -1 : 1;
-      const va = (a?.[col]);
-      const vb = (b?.[col]);
-
-      if (['total_amount','total_referral_amount','total_roi'].includes(col)) {
-        const na = Number(va) || 0;
-        const nb = Number(vb) || 0;
-        return (na < nb ? -1 : na > nb ? 1 : 0) * mul;
-      }
-
-      if (col === 'date_started') {
-        const sa = (typeof va === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(va)) ? va : '';
-        const sb = (typeof vb === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(vb)) ? vb : '';
-        if (sa === sb) return 0;
-        return (sa < sb ? -1 : 1) * mul;
-      }
-
-      const sa = (va ?? '').toString().toLowerCase();
-      const sb = (vb ?? '').toString().toLowerCase();
-      if (sa === sb) return 0;
-      return (sa < sb ? -1 : 1) * mul;
-    }
-
-    async function submitAddGroup(){
-      grpMsg.className='muted';
-      grpMsg.textContent='Saving…';
-
-      const payload = {
-        year: Number(grpYear.value),
-        group_name: (grpName.value||'').trim(),
-        date_started: grpDate.value || null,
-        total_amount: grpAmount.value === '' ? 0 : Number(grpAmount.value)
-      };
-
-      if(!payload.group_name){ grpMsg.className='error'; grpMsg.textContent='Please enter a Group Name.'; return; }
-      if(!Number.isInteger(payload.year)){ grpMsg.className='error'; grpMsg.textContent='Select a valid Year.'; return; }
-      if(payload.date_started && !/^\d{4}-\d{2}-\d{2}$/.test(payload.date_started)){
-        grpMsg.className='error'; grpMsg.textContent='Date must be YYYY-MM-DD.'; return;
-      }
-      if(!Number.isFinite(payload.total_amount)){
-        grpMsg.className='error'; grpMsg.textContent='Total Amount must be numeric.'; return;
-      }
-
-      try{
-        const r = await fetch(GROUPS_ADD_URL, {
-          method:'POST',
-          headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
-          body: JSON.stringify(payload),
-          cache:'no-store',
-          mode:'cors'
-        });
-
-        const raw = await r.text();
-        let d = null; try { d = JSON.parse(raw); } catch {}
-
-        if (!r.ok || !d?.ok) {
-          const msg = (d?.error || d?.detail || d?.message || raw || `HTTP ${r.status}`);
-          grpMsg.className='error';
-          grpMsg.innerHTML = `Save failed: ${esc(msg)}<br><span class="muted">Check console for payload/response debug.</span>`;
-          console.error('GROUPS ADD ERROR', { status: r.status, requestPayload: payload, responseRaw: raw, responseJson: d });
-          return;
-        }
-
-        grpMsg.className='success';
-        grpMsg.textContent='Saved!';
-        await loadGroups();
-
-        showGroupForm(false);
-        document.getElementById('btn-toggle-add-group')?.focus();
-
-      }catch(e){
-        grpMsg.className='error';
-        grpMsg.innerHTML = `Network/JS error: ${esc(e.message||String(e))}<br><span class="muted">See console for details.</span>`;
-        console.error('GROUPS ADD EXCEPTION', e, { requestPayload: payload });
-      }
-    }
-
-    // ===== ROI (unchanged core) =====
+    // ====== ROI ======
     const roiStatus = document.getElementById('roi-status');
-    const roiTbody  = document.getElementById('roi-tbody');
-    const roiFilterGroup = document.getElementById('roi-filter-group');
-    const roiFilterYear  = document.getElementById('roi-filter-year');
-    const btnLoadRoi     = document.getElementById('btn-load-roi');
-    const btnRetryRoi    = document.getElementById('btn-retry-roi');
+    const roiTableWrap = document.getElementById('roi-table-wrap');
+    const roiTable = document.getElementById('roi-table');
+    const roiGroupSel = document.getElementById('roi-group-select');
+    const roiYearSel = document.getElementById('roi-year-select');
+    document.getElementById('btn-refresh-roi').addEventListener('click', initRoiFilters);
+    document.getElementById('btn-load-roi').addEventListener('click', loadROI);
 
-    let roiDistinctLoaded = false;
-    async function initAndLoadROI(){
-      if (!roiDistinctLoaded) {
-        await fetchRoiDistinctsAndInitialRows();
-        roiDistinctLoaded = true;
-      } else {
-        await loadRoiRowsFromFilters();
-      }
+    async function initRoiFilters(){
+      roiStatus.textContent = 'Loading filters…';
+      // Groups from list-groups
+      try {
+        const resG = await fetch(new URL('/', API_LIST_GROUPS), { headers:{'Accept':'application/json'} });
+        const txtG = await resG.text(); let dataG = null; try{ dataG = JSON.parse(txtG); }catch{}
+        if (resG.ok && dataG && Array.isArray(dataG.rows)) {
+          // Reset group select
+          roiGroupSel.innerHTML = '<option value="ALL">ALL</option>';
+          dataG.rows
+            .map(r=>r.group_name)
+            .filter(Boolean)
+            .sort((a,b)=>a.localeCompare(b))
+            .forEach(name=>{
+              const opt=document.createElement('option'); opt.value=name; opt.textContent=name; roiGroupSel.appendChild(opt);
+            });
+        }
+      } catch(e){ /* non-fatal */ }
+
+      // Years from ROI endpoint (fetch all then dedupe)
+      try {
+        const resY = await fetch(new URL('/', API_GROUP_ROI), { headers:{'Accept':'application/json'} });
+        const txtY = await resY.text(); let dataY=null; try{ dataY=JSON.parse(txtY);}catch{}
+        if (resY.ok && dataY && Array.isArray(dataY.rows)) {
+          const years = Array.from(new Set(dataY.rows.map(r=>r.year).filter(Boolean))).sort((a,b)=>String(a).localeCompare(String(b)));
+          roiYearSel.innerHTML = '<option value="ALL">ALL</option>';
+          years.forEach(y=>{
+            const opt=document.createElement('option'); opt.value=String(y); opt.textContent=String(y); roiYearSel.appendChild(opt);
+          });
+        }
+      } catch(e){ /* non-fatal */ }
+      roiStatus.textContent = 'Filters ready. Click Load.';
     }
-    async function fetchRoiDistinctsAndInitialRows(){
+
+    async function loadROI(){
       roiStatus.textContent = 'Loading ROI…';
-      roiTbody.innerHTML = `<tr><td class="empty" colspan="6">Loading…</td></tr>`;
-      btnRetryRoi.style.display = 'none';
+      roiTableWrap.style.display='none';
+      roiTable.innerHTML='';
+
       try{
-        const res = await fetch(ROI_LIST_URL, { method:'GET', headers:{Accept:'application/json'}, cache:'no-store', mode:'cors' });
-        const raw = await res.text(); let data = null; try { data = JSON.parse(raw); } catch {}
-        if (!res.ok) {
-          const msg = (data?.error || data?.message || raw || `HTTP ${res.status}`);
-          roiStatus.textContent = `Error fetching ROI: ${msg}`;
-          roiTbody.innerHTML = `<tr><td class="empty" colspan="6" style="color:var(--danger)">Error: ${esc(msg)}</td></tr>`;
-          btnRetryRoi.style.display = '';
-          console.error('ROI LIST ERROR', { status: res.status, raw, json: data });
-          return;
-        }
-        populateRoiFilters(data?.distinct);
-        renderRoiTableRows(Array.isArray(data?.rows) ? data.rows : []);
-      }catch(e){
-        roiStatus.textContent = `Network/JS error: ${e.message||String(e)}`;
-        roiTbody.innerHTML = `<tr><td class="empty" colspan="6" style="color:var(--danger)">Network/JS error: ${esc(e.message||String(e))}</td></tr>`;
-        btnRetryRoi.style.display = '';
-        console.error('ROI LIST EXCEPTION', e);
+        const grp = roiGroupSel.value || 'ALL';
+        const yr  = roiYearSel.value || 'ALL';
+        const url = new URL('/', API_GROUP_ROI);
+        if (grp && grp!=='ALL') url.searchParams.set('group', grp);
+        if (yr && yr!=='ALL')   url.searchParams.set('year', yr);
+        const res = await fetch(url.toString(), { headers:{'Accept':'application/json'} });
+        const txt = await res.text(); let data=null; try{ data=JSON.parse(txt);}catch{}
+        if (!res.ok) throw new Error((data && (data.error||data.message)) || txt || `HTTP ${res.status}`);
+
+        let rows = (data && data.rows) || [];
+        // default sort by group_name A→Z then year asc
+        rows.sort((a,b)=>{
+          const gn = (a.group_name||'').localeCompare(b.group_name||''); if (gn!==0) return gn;
+          return String(a.year||'').localeCompare(String(b.year||''));
+        });
+
+        roiStatus.textContent = rows.length ? `Loaded ${rows.length} row${rows.length===1?'':'s'}.` : 'No rows found.';
+        if (!rows.length) return;
+
+        // Build table
+        const columns = [
+          { key:'group_name', label:'Group Name' },
+          { key:'year', label:'Year' },
+          { key:'renewal_date', label:'Renewal Date', fmt:(v)=> v?String(v).slice(0,10):'' },
+          { key:'renewal_amount', label:'Renewal Amount', fmt:(v)=> fmtCurrency(v) },
+          { key:'referral_amount', label:'Referral Amount', fmt:(v)=> fmtCurrency(v) },
+          { key:'roi', label:'ROI', fmt:(v)=> fmtPercent(v) },
+        ];
+        const thead = document.createElement('thead');
+        const trh = document.createElement('tr');
+        columns.forEach(c=>{ const th=document.createElement('th'); th.textContent=c.label; trh.appendChild(th); });
+        thead.appendChild(trh);
+        const tbody = document.createElement('tbody');
+        rows.forEach(r=>{
+          const tr=document.createElement('tr');
+          columns.forEach(c=>{
+            const td=document.createElement('td');
+            const raw = r[c.key];
+            td.innerHTML = (c.fmt? c.fmt(raw) : (raw ?? '')) || '<span class="muted">—</span>';
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+        roiTable.appendChild(thead); roiTable.appendChild(tbody);
+        roiTableWrap.style.display='';
+      } catch(e){
+        roiStatus.textContent = `Error loading ROI: ${e.message}`;
       }
-    }
-    function populateRoiFilters(distinct){
-      const groups = (distinct?.group_names || []).slice();
-      const years  = (distinct?.years || []).slice();
-      roiFilterGroup.innerHTML = '<option value="ALL">ALL</option>';
-      groups.forEach(g => { const o=document.createElement('option'); o.value=g; o.textContent=g; roiFilterGroup.appendChild(o); });
-      roiFilterYear.innerHTML = '<option value="ALL">ALL</option>';
-      years.forEach(y => { const o=document.createElement('option'); o.value=String(y); o.textContent=String(y); roiFilterYear.appendChild(o); });
-      roiFilterGroup.value = 'ALL'; roiFilterYear.value = 'ALL';
-    }
-    async function loadRoiRowsFromFilters(){
-      const group = roiFilterGroup.value;
-      const year  = roiFilterYear.value;
-      roiStatus.textContent = 'Loading…';
-      roiTbody.innerHTML = `<tr><td class="empty" colspan="6">Loading…</td></tr>`;
-      btnRetryRoi.style.display = 'none';
-      try{
-        const u = new URL(ROI_LIST_URL);
-        if (group && group !== 'ALL') u.searchParams.set('group_name', group);
-        if (year && year !== 'ALL')   u.searchParams.set('year', year);
-        const res = await fetch(u.toString(), { method:'GET', headers:{Accept:'application/json'}, cache:'no-store', mode:'cors' });
-        const raw = await res.text(); let data = null; try { data = JSON.parse(raw); } catch {}
-        if (!res.ok) {
-          const msg = (data?.error || data?.message || raw || `HTTP ${res.status}`);
-          roiStatus.textContent = `Error fetching ROI: ${msg}`;
-          roiTbody.innerHTML = `<tr><td class="empty" colspan="6" style="color:var(--danger)">Error: ${esc(msg)}</td></tr>`;
-          btnRetryRoi.style.display = '';
-          console.error('ROI FILTER ERROR', { status: res.status, raw, json: data, group, year });
-          return;
-        }
-        renderRoiTableRows(Array.isArray(data?.rows) ? data.rows : []);
-      }catch(e){
-        roiStatus.textContent = `Network/JS error: ${e.message||String(e)}`;
-        roiTbody.innerHTML = `<tr><td class="empty" colspan="6" style="color:var(--danger)">Network/JS error: ${esc(e.message||String(e))}</td></tr>`;
-        btnRetryRoi.style.display = '';
-        console.error('ROI FILTER EXCEPTION', e);
-      }
-    }
-    function renderRoiTableRows(rows){
-      roiStatus.textContent = rows.length ? `Loaded ${rows.length} record${rows.length===1?'':'s'}.` : 'No records found.';
-      if (!rows.length) {
-        roiTbody.innerHTML = `<tr><td class="empty" colspan="6">No records found.</td></tr>`;
-        return;
-      }
-      roiTbody.innerHTML = rows.map(r => `
-        <tr>
-          <td>${esc(r.group_name||'')}</td>
-          <td>${esc(r.year ?? '')}</td>
-          <td>${esc(r.renewal_date||'')}</td>
-          <td>${fmtMoneyUSD(r.renewal_amount)}</td>
-          <td>${fmtMoneyUSD(r.referral_amount)}</td>
-          <td>${fmtPercent(r.roi)}</td>
-        </tr>
-      `).join('');
     }
 
-    // ===== Contacts (NEW) =====
+    // ====== CONTACTS ======
     const contactsStatus = document.getElementById('contacts-status');
-    const contactsTbody  = document.getElementById('contacts-tbody');
+    const contactsTableWrap = document.getElementById('contacts-table-wrap');
+    const contactsTable = document.getElementById('contacts-table');
     document.getElementById('btn-refresh-contacts').addEventListener('click', loadContacts);
 
     async function loadContacts(){
       contactsStatus.textContent = 'Loading contacts…';
-      contactsTbody.innerHTML = `<tr><td class="empty" colspan="5">Loading…</td></tr>`;
-      try{
-        const res = await fetch(CONTACTS_LIST_URL, {
-          method:'GET',
-          headers:{ Accept:'application/json' },
-          cache:'no-store',
-          mode:'cors'
-        });
-        const raw = await res.text();
-        let data = null; try { data = JSON.parse(raw); } catch {}
-        if (!res.ok) {
-          const msg = data?.error || data?.message || raw || `HTTP ${res.status}`;
-          contactsStatus.textContent = `Error: ${msg}`;
-          contactsTbody.innerHTML = `<tr><td class="empty" colspan="5" style="color:var(--danger)">Error: ${esc(msg)}</td></tr>`;
-          console.error('CONTACTS LIST ERROR', { status: res.status, raw, json: data });
-          return;
-        }
+      contactsTableWrap.style.display = 'none';
+      contactsTable.innerHTML = '';
+      try {
+        const url = new URL('/', API_LIST_CONTACTS);
+        const res = await fetch(url.toString(), { headers: { 'Accept':'application/json' }});
+        const text = await res.text();
+        let data = null; try { data = JSON.parse(text); } catch {}
+        if (!res.ok) throw new Error((data && (data.error || data.message)) || text || `HTTP ${res.status}`);
 
-        const rows = Array.isArray(data?.rows) ? data.rows : [];
+        let rows = (data && data.rows) || [];
         contactsStatus.textContent = rows.length ? `Loaded ${rows.length} contact${rows.length===1?'':'s'}.` : 'No contacts found.';
-        if (!rows.length) {
-          contactsTbody.innerHTML = `<tr><td class="empty" colspan="5">No contacts found.</td></tr>`;
-          return;
-        }
+        if (!rows.length) return;
 
-        contactsTbody.innerHTML = rows.map(r => `
-          <tr>
-            <td>${esc(r.first_name||'')}</td>
-            <td>${esc(r.last_name||'')}</td>
-            <td>${esc(r.group_name||'')}</td>
-            <td>${esc(r.occupation_type||'')}</td>
-            <td>${esc(r.referred_clients ?? 0)}</td>
-          </tr>
-        `).join('');
-      }catch(e){
-        contactsStatus.textContent = `Network/JS error: ${e.message||String(e)}`;
-        contactsTbody.innerHTML = `<tr><td class="empty" colspan="5" style="color:var(--danger)">Network/JS error: ${esc(e.message||String(e))}</td></tr>`;
-        console.error('CONTACTS LIST EXCEPTION', e);
+        // default sort by last_name, first_name
+        rows.sort((a,b)=>{
+          const ln = (a.last_name||'').localeCompare(b.last_name||''); if (ln!==0) return ln;
+          return (a.first_name||'').localeCompare(b.first_name||'');
+        });
+
+        renderContactsTable(rows);
+        contactsTableWrap.style.display = '';
+      } catch (err){
+        contactsStatus.textContent = `Error loading contacts: ${err.message}`;
       }
     }
 
-    // ---- formatters / utils ----
-    const usdFmt = new Intl.NumberFormat('en-US', { style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2 });
-    function fmtMoneyUSD(v){
-      if(v==null || v==='') return '';
-      const n = Number(v);
-      return Number.isFinite(n) ? usdFmt.format(n) : '';
+    function renderContactsTable(rows){
+      const columns = [
+        { key:'first_name', label:'First Name' },
+        { key:'last_name', label:'Last Name' },
+        { key:'group_name', label:'Group' },
+        { key:'occupation_type', label:'Occupation Type' },
+        { key:'email', label:'Email' },
+        { key:'phone', label:'Phone' },
+      ];
+      const thead=document.createElement('thead');
+      const trh=document.createElement('tr');
+      columns.forEach(c=>{ const th=document.createElement('th'); th.textContent=c.label; trh.appendChild(th); });
+      thead.appendChild(trh);
+      const tbody=document.createElement('tbody');
+      rows.forEach(r=>{
+        const tr=document.createElement('tr');
+        columns.forEach(c=>{
+          const td=document.createElement('td');
+          let v = r[c.key];
+          if (c.key==='group_name') v = v || '(No Group)';
+          td.textContent = (v==null || v==='') ? '' : String(v);
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      contactsTable.innerHTML=''; contactsTable.appendChild(thead); contactsTable.appendChild(tbody);
     }
-    const pctIntl = new Intl.NumberFormat('en-US', { style:'percent', minimumFractionDigits:2, maximumFractionDigits:2 });
-    function fmtPercent(v){
-      if(v==null || v==='') return '';
-      const n = Number(v);
-      if(!Number.isFinite(n)) return '';
-      if (Math.abs(n) <= 1) return pctIntl.format(n);
-      return `${n.toFixed(2)}%`;
-    }
-    function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-    // ===== Init =====
-    document.getElementById('btn-refresh-clients').addEventListener('click', loadClients);
-    document.getElementById('btn-refresh-groups').addEventListener('click', loadGroups);
-    loadClients(); // default tab
+    // ===== Init (load defaults) =====
+    loadClients();
+    loadGroups();
+    initRoiFilters();
+    // Contacts won’t load until user clicks Contacts tab refresh OR we can auto-load here:
+    loadContacts();
   </script>
 </body>
 </html>
+
