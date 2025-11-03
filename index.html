@@ -65,7 +65,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.26</div>
+    <div id="version">SNF UI v0.27</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -705,20 +705,32 @@ async function loadROI(){
   roiTable.innerHTML='';
 
   try{
-    const grp = roiGroupSel.value || 'ALL';
-    const yr  = roiYearSel.value || 'ALL';
-    // ✅ FIXED: no new URL('/') — prevents double slash and query issues
-    let url = API_GROUP_ROI;
+    const grp = (roiGroupSel.value || 'ALL').trim();
+    const yr  = (roiYearSel.value || 'ALL').trim();
+
+    // Build query string sending both common param names
     const params = [];
-    if (grp !== 'ALL') params.push(`group=${encodeURIComponent(grp)}`);
-    if (yr !== 'ALL') params.push(`year=${encodeURIComponent(yr)}`);
+    if (grp && grp !== 'ALL') {
+      params.push(`group=${encodeURIComponent(grp)}`);
+      params.push(`group_name=${encodeURIComponent(grp)}`); // compatibility
+    }
+    if (yr && yr !== 'ALL') {
+      params.push(`year=${encodeURIComponent(yr)}`);
+    }
+
+    let url = API_GROUP_ROI; // must be 'https://snf-list-group-roi.dennis-e64.workers.dev'
     if (params.length) url += '?' + params.join('&');
 
     const res = await fetch(url, { headers:{'Accept':'application/json'} });
-    const txt = await res.text(); let data=null; try{ data=JSON.parse(txt);}catch{}
-    if (!res.ok) throw new Error((data && (data.error||data.message)) || txt || `HTTP ${res.status}`);
+    const txt = await res.text();
+    let data=null; try{ data=JSON.parse(txt); }catch{}
 
-    const rows = (data && data.rows) || [];
+    if (!res.ok) {
+      const msg = (data && (data.error||data.message)) || (txt && txt.trim()) || `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+
+    const rows = Array.isArray(data) ? data : (data && data.rows) || [];
     rows.sort((a,b)=>{
       const gn = (a.group_name||'').localeCompare(b.group_name||'');
       return gn!==0 ? gn : String(a.year||'').localeCompare(String(b.year||''));
