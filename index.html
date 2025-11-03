@@ -65,7 +65,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.27</div>
+    <div id="version">SNF UI v0.28</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -83,7 +83,6 @@
         <div><strong>Clients</strong> <span class="muted">— add and manage clients</span></div>
         <div style="display:flex; gap:8px; align-items:center">
           <button class="btn" id="btn-refresh-clients">Refresh</button>
-          <!-- Add Client button ONLY on Clients tab -->
           <button class="btn primary" id="btn-add-client">+ Add Client</button>
         </div>
       </div>
@@ -182,6 +181,17 @@
       <div class="toolbar">
         <div><strong>Contacts</strong> <span class="muted">— shows group name via view</span></div>
         <div style="display:flex; gap:8px; align-items:center">
+          <div class="filters" style="margin:0; gap:8px; align-items:center;">
+            <div class="grow" style="max-width:260px;">
+              <div class="label">Group</div>
+              <select class="input" id="contacts-group-select">
+                <option value="ALL">ALL</option>
+              </select>
+            </div>
+            <div>
+              <button class="btn primary" id="btn-load-contacts">Load</button>
+            </div>
+          </div>
           <button class="btn" id="btn-refresh-contacts">Refresh</button>
         </div>
       </div>
@@ -264,7 +274,7 @@
 
     const API_LIST_CONTACTS  = 'https://snf-list-contacts.dennis-e64.workers.dev';
 
-    const API_GROUP_ROI      = 'https://snf-list-group-roi.dennis-e64.workers.dev'; // expects optional ?group= & year=
+    const API_GROUP_ROI      = 'https://snf-list-group-roi.dennis-e64.workers.dev'; // ?group=&year=
 
     // ===== Tabs =====
     const tabs = document.querySelectorAll('.tab');
@@ -289,7 +299,6 @@
     };
     const fmtPercent = (n) => {
       if (n === null || n === undefined || isNaN(n)) return '';
-      // Accept 0.25 as 25% or 25 as 25%
       const val = Number(n);
       const p = val > 1 ? val/100 : val;
       return new Intl.NumberFormat('en-US',{style:'percent',minimumFractionDigits:2,maximumFractionDigits:2}).format(p);
@@ -324,14 +333,13 @@
     }
 
     function renderClientsTable(rows){
-      // Preferred columns (no IDs; referral names only)
       const preferred = [
         'first_name','last_name',
         'email','phone',
         'referred_by_first_name','referred_by_last_name',
         'created_at','updated_at'
       ];
-      const HIDE = new Set(['id','client_id','referred_by_id']); // Always hidden
+      const HIDE = new Set(['id','client_id','referred_by_id']);
 
       const keySet = new Set();
       rows.forEach(r => Object.keys(r || {}).forEach(k => { if (!HIDE.has(k)) keySet.add(k); }));
@@ -483,7 +491,6 @@
           throw new Error(msg);
         }
         setMsg('Client added successfully!', false, true);
-        // Close modal after success and refresh list
         setTimeout(() => { closeModal(); loadClients(); }, 600);
       } catch (e) {
         setMsg(e.message || 'Save failed', true);
@@ -510,7 +517,6 @@
     const groupFormMsg = document.getElementById('group-form-msg');
     const yearSelect = document.getElementById('year-select');
 
-    // Populate Year dropdown (2025 → +10y ascending)
     (function initYears(){
       const start = 2025;
       for (let y=start; y<=start+10; y++){
@@ -544,7 +550,6 @@
         if (!res.ok) throw new Error((data && (data.error || data.message)) || text || `HTTP ${res.status}`);
 
         let rows = (data && data.rows) || [];
-        // default sort A→Z by group_name
         rows.sort((a,b)=> (a.group_name||'').localeCompare(b.group_name||''));
 
         groupsStatus.textContent = rows.length ? `Loaded ${rows.length} group${rows.length===1?'':'s'}.` : 'No groups found.';
@@ -591,7 +596,6 @@
           });
           renderBody();
           arrow.textContent = sortAsc ? '▲' : '▼';
-          // reset other headers arrows
           Array.from(thead.querySelectorAll('.sort-arrow')).forEach(el => { if (el!==arrow) el.textContent='▲'; });
         };
         trh.appendChild(th);
@@ -658,143 +662,183 @@
     document.getElementById('btn-refresh-roi').addEventListener('click', initRoiFilters);
     document.getElementById('btn-load-roi').addEventListener('click', loadROI);
 
-async function initRoiFilters(){
-  roiStatus.textContent = 'Loading filters…';
+    async function initRoiFilters(){
+      roiStatus.textContent = 'Loading filters…';
 
-  try {
-    // --- Groups ---
-    const resG = await fetch(API_LIST_GROUPS, { headers:{'Accept':'application/json'} });
-    const txtG = await resG.text(); let dataG = null; try{ dataG = JSON.parse(txtG); }catch{}
-    if (resG.ok && dataG && Array.isArray(dataG.rows)) {
-      roiGroupSel.innerHTML = '<option value="ALL">ALL</option>';
-      dataG.rows
-        .map(r=>r.group_name)
-        .filter(Boolean)
-        .sort((a,b)=>a.localeCompare(b))
-        .forEach(name=>{
-          const opt=document.createElement('option'); 
-          opt.value=name; 
-          opt.textContent=name; 
-          roiGroupSel.appendChild(opt);
+      try {
+        // Groups
+        const resG = await fetch(API_LIST_GROUPS, { headers:{'Accept':'application/json'} });
+        const txtG = await resG.text(); let dataG = null; try{ dataG = JSON.parse(txtG); }catch{}
+        if (resG.ok && dataG && Array.isArray(dataG.rows)) {
+          roiGroupSel.innerHTML = '<option value="ALL">ALL</option>';
+          dataG.rows
+            .map(r=>r.group_name)
+            .filter(Boolean)
+            .sort((a,b)=>a.localeCompare(b))
+            .forEach(name=>{
+              const opt=document.createElement('option'); 
+              opt.value=name; 
+              opt.textContent=name; 
+              roiGroupSel.appendChild(opt);
+            });
+        }
+
+        // Years (pull unique years from ROI endpoint)
+        const resY = await fetch(API_GROUP_ROI, { headers:{'Accept':'application/json'} });
+        const txtY = await resY.text(); let dataY=null; try{ dataY=JSON.parse(txtY);}catch{}
+        if (resY.ok && dataY && Array.isArray(dataY.rows)) {
+          const years = [...new Set(dataY.rows.map(r=>r.year).filter(Boolean))].sort();
+          roiYearSel.innerHTML = '<option value="ALL">ALL</option>';
+          years.forEach(y=>{
+            const opt=document.createElement('option'); 
+            opt.value=String(y); 
+            opt.textContent=String(y); 
+            roiYearSel.appendChild(opt);
+          });
+        }
+
+        roiStatus.textContent = 'Filters ready. Click Load.';
+      } catch(e){ 
+        roiStatus.textContent = 'Error loading filters: ' + e.message;
+      }
+    }
+
+    async function loadROI(){
+      roiStatus.textContent = 'Loading ROI…';
+      roiTableWrap.style.display='none';
+      roiTable.innerHTML='';
+
+      try{
+        const grp = (roiGroupSel.value || 'ALL').trim();
+        const yr  = (roiYearSel.value || 'ALL').trim();
+
+        const params = [];
+        if (grp && grp !== 'ALL') {
+          params.push(`group=${encodeURIComponent(grp)}`);
+          params.push(`group_name=${encodeURIComponent(grp)}`); // compatibility
+        }
+        if (yr && yr !== 'ALL') {
+          params.push(`year=${encodeURIComponent(yr)}`);
+        }
+
+        let url = API_GROUP_ROI; // 'https://snf-list-group-roi...'
+        if (params.length) url += '?' + params.join('&');
+
+        const res = await fetch(url, { headers:{'Accept':'application/json'} });
+        const txt = await res.text();
+        let data=null; try{ data=JSON.parse(txt); }catch{}
+
+        if (!res.ok) {
+          const msg = (data && (data.error||data.message)) || (txt && txt.trim()) || `HTTP ${res.status}`;
+          throw new Error(msg);
+        }
+
+        const rows = Array.isArray(data) ? data : (data && data.rows) || [];
+        rows.sort((a,b)=>{
+          const gn = (a.group_name||'').localeCompare(b.group_name||'');
+          return gn!==0 ? gn : String(a.year||'').localeCompare(String(b.year||''));
         });
+
+        roiStatus.textContent = rows.length ? `Loaded ${rows.length} row${rows.length===1?'':'s'}.` : 'No rows found.';
+        if (!rows.length) return;
+
+        const columns = [
+          { key:'group_name', label:'Group Name' },
+          { key:'year', label:'Year' },
+          { key:'renewal_date', label:'Renewal Date', fmt:v=>v?String(v).slice(0,10):'' },
+          { key:'renewal_amount', label:'Renewal Amount', fmt:fmtCurrency },
+          { key:'referral_amount', label:'Referral Amount', fmt:fmtCurrency },
+          { key:'roi', label:'ROI', fmt:fmtPercent },
+        ];
+
+        const thead = document.createElement('thead');
+        const trh = document.createElement('tr');
+        columns.forEach(c=>{ const th=document.createElement('th'); th.textContent=c.label; trh.appendChild(th); });
+        thead.appendChild(trh);
+
+        const tbody = document.createElement('tbody');
+        rows.forEach(r=>{
+          const tr=document.createElement('tr');
+          columns.forEach(c=>{
+            const td=document.createElement('td');
+            const raw = r[c.key];
+            td.innerHTML = (c.fmt ? c.fmt(raw) : (raw ?? '')) || '<span class="muted">—</span>';
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+
+        roiTable.appendChild(thead);
+        roiTable.appendChild(tbody);
+        roiTableWrap.style.display='';
+      } catch(e){
+        roiStatus.textContent = `Error loading ROI: ${e.message}`;
+      }
     }
 
-    // --- Years ---
-    const resY = await fetch(API_GROUP_ROI, { headers:{'Accept':'application/json'} });
-    const txtY = await resY.text(); let dataY=null; try{ dataY=JSON.parse(txtY);}catch{}
-    if (resY.ok && dataY && Array.isArray(dataY.rows)) {
-      const years = [...new Set(dataY.rows.map(r=>r.year).filter(Boolean))].sort();
-      roiYearSel.innerHTML = '<option value="ALL">ALL</option>';
-      years.forEach(y=>{
-        const opt=document.createElement('option'); 
-        opt.value=String(y); 
-        opt.textContent=String(y); 
-        roiYearSel.appendChild(opt);
-      });
-    }
-
-    roiStatus.textContent = 'Filters ready. Click Load.';
-  } catch(e){ 
-    roiStatus.textContent = 'Error loading filters: ' + e.message;
-  }
-}
-
-async function loadROI(){
-  roiStatus.textContent = 'Loading ROI…';
-  roiTableWrap.style.display='none';
-  roiTable.innerHTML='';
-
-  try{
-    const grp = (roiGroupSel.value || 'ALL').trim();
-    const yr  = (roiYearSel.value || 'ALL').trim();
-
-    // Build query string sending both common param names
-    const params = [];
-    if (grp && grp !== 'ALL') {
-      params.push(`group=${encodeURIComponent(grp)}`);
-      params.push(`group_name=${encodeURIComponent(grp)}`); // compatibility
-    }
-    if (yr && yr !== 'ALL') {
-      params.push(`year=${encodeURIComponent(yr)}`);
-    }
-
-    let url = API_GROUP_ROI; // must be 'https://snf-list-group-roi.dennis-e64.workers.dev'
-    if (params.length) url += '?' + params.join('&');
-
-    const res = await fetch(url, { headers:{'Accept':'application/json'} });
-    const txt = await res.text();
-    let data=null; try{ data=JSON.parse(txt); }catch{}
-
-    if (!res.ok) {
-      const msg = (data && (data.error||data.message)) || (txt && txt.trim()) || `HTTP ${res.status}`;
-      throw new Error(msg);
-    }
-
-    const rows = Array.isArray(data) ? data : (data && data.rows) || [];
-    rows.sort((a,b)=>{
-      const gn = (a.group_name||'').localeCompare(b.group_name||'');
-      return gn!==0 ? gn : String(a.year||'').localeCompare(String(b.year||''));
-    });
-
-    roiStatus.textContent = rows.length ? `Loaded ${rows.length} row${rows.length===1?'':'s'}.` : 'No rows found.';
-    if (!rows.length) return;
-
-    const columns = [
-      { key:'group_name', label:'Group Name' },
-      { key:'year', label:'Year' },
-      { key:'renewal_date', label:'Renewal Date', fmt:v=>v?String(v).slice(0,10):'' },
-      { key:'renewal_amount', label:'Renewal Amount', fmt:fmtCurrency },
-      { key:'referral_amount', label:'Referral Amount', fmt:fmtCurrency },
-      { key:'roi', label:'ROI', fmt:fmtPercent },
-    ];
-
-    const thead = document.createElement('thead');
-    const trh = document.createElement('tr');
-    columns.forEach(c=>{ const th=document.createElement('th'); th.textContent=c.label; trh.appendChild(th); });
-    thead.appendChild(trh);
-
-    const tbody = document.createElement('tbody');
-    rows.forEach(r=>{
-      const tr=document.createElement('tr');
-      columns.forEach(c=>{
-        const td=document.createElement('td');
-        const raw = r[c.key];
-        td.innerHTML = (c.fmt ? c.fmt(raw) : (raw ?? '')) || '<span class="muted">—</span>';
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-
-    roiTable.appendChild(thead);
-    roiTable.appendChild(tbody);
-    roiTableWrap.style.display='';
-  } catch(e){
-    roiStatus.textContent = `Error loading ROI: ${e.message}`;
-  }
-}
-
-    // ====== CONTACTS ======
+    // ====== CONTACTS (with Group filter) ======
     const contactsStatus = document.getElementById('contacts-status');
     const contactsTableWrap = document.getElementById('contacts-table-wrap');
     const contactsTable = document.getElementById('contacts-table');
-    document.getElementById('btn-refresh-contacts').addEventListener('click', loadContacts);
+    const contactsGroupSel = document.getElementById('contacts-group-select');
 
-    async function loadContacts(){
+    document.getElementById('btn-refresh-contacts').addEventListener('click', initContactsFilters);
+    document.getElementById('btn-load-contacts').addEventListener('click', () => loadContacts(contactsGroupSel.value || 'ALL'));
+
+    async function initContactsFilters(){
+      contactsStatus.textContent = 'Loading group filter…';
+      try {
+        const resG = await fetch(new URL('/', API_LIST_GROUPS), { headers:{'Accept':'application/json'} });
+        const txtG = await resG.text();
+        let dataG = null; try { dataG = JSON.parse(txtG); } catch {}
+        const rowsG = (resG.ok && dataG && Array.isArray(dataG.rows)) ? dataG.rows : [];
+
+        contactsGroupSel.innerHTML = '<option value="ALL">ALL</option>';
+        rowsG
+          .map(r => r.group_name)
+          .filter(Boolean)
+          .sort((a,b) => a.localeCompare(b))
+          .forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            contactsGroupSel.appendChild(opt);
+          });
+
+        contactsStatus.textContent = 'Filter ready. Click Load.';
+      } catch (e) {
+        contactsStatus.textContent = 'Error loading group filter: ' + e.message;
+      }
+    }
+
+    async function loadContacts(groupName = 'ALL'){
       contactsStatus.textContent = 'Loading contacts…';
       contactsTableWrap.style.display = 'none';
       contactsTable.innerHTML = '';
       try {
-        const url = new URL('/', API_LIST_CONTACTS);
-        const res = await fetch(url.toString(), { headers: { 'Accept':'application/json' }});
+        let url = API_LIST_CONTACTS;
+        const params = [];
+        if (groupName && groupName !== 'ALL') {
+          params.push(`group=${encodeURIComponent(groupName)}`);
+          params.push(`group_name=${encodeURIComponent(groupName)}`); // compatibility
+        }
+        if (params.length) url += '?' + params.join('&');
+
+        const res = await fetch(url, { headers: { 'Accept':'application/json' }});
         const text = await res.text();
         let data = null; try { data = JSON.parse(text); } catch {}
         if (!res.ok) throw new Error((data && (data.error || data.message)) || text || `HTTP ${res.status}`);
 
-        let rows = (data && data.rows) || [];
+        let rows = Array.isArray(data) ? data : (data && data.rows) || [];
+
+        // Client-side fallback if Worker ignored filter
+        if (groupName && groupName !== 'ALL') {
+          rows = rows.filter(r => (r.group_name || '').trim() === groupName.trim());
+        }
+
         contactsStatus.textContent = rows.length ? `Loaded ${rows.length} contact${rows.length===1?'':'s'}.` : 'No contacts found.';
         if (!rows.length) return;
 
-        // default sort by last_name, first_name
         rows.sort((a,b)=>{
           const ln = (a.last_name||'').localeCompare(b.last_name||''); if (ln!==0) return ln;
           return (a.first_name||'').localeCompare(b.first_name||'');
@@ -835,12 +879,14 @@ async function loadROI(){
       contactsTable.innerHTML=''; contactsTable.appendChild(thead); contactsTable.appendChild(tbody);
     }
 
-    // ===== Init (load defaults) =====
+    // ===== Init =====
     loadClients();
     loadGroups();
     initRoiFilters();
-    // Contacts won’t load until user clicks Contacts tab refresh OR we can auto-load here:
-    loadContacts();
+    initContactsFilters();
+    // Auto-load contacts with ALL by default
+    loadContacts('ALL');
   </script>
 </body>
 </html>
+
