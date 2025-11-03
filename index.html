@@ -65,7 +65,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.28</div>
+    <div id="version">SNF UI v0.27</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -178,31 +178,19 @@
     </section>
 
     <!-- Contacts Panel -->
-<section class="panel" id="panel-contacts" style="display:none">
-  <div class="toolbar">
-    <div><strong>Contacts</strong> <span class="muted">— shows group name via view</span></div>
-    <div style="display:flex; gap:8px; align-items:center">
-      <!-- 🔽 Add this block -->
-      <div class="filters" style="margin:0; gap:8px; align-items:center;">
-        <div class="grow" style="max-width:260px;">
-          <div class="label">Group</div>
-          <select class="input" id="contacts-group-select">
-            <option value="ALL">ALL</option>
-          </select>
-        </div>
-        <div>
-          <button class="btn primary" id="btn-load-contacts">Load</button>
+    <section class="panel" id="panel-contacts" style="display:none">
+      <div class="toolbar">
+        <div><strong>Contacts</strong> <span class="muted">— shows group name via view</span></div>
+        <div style="display:flex; gap:8px; align-items:center">
+          <button class="btn" id="btn-refresh-contacts">Refresh</button>
         </div>
       </div>
-      <!-- 🔼 Add this block -->
-      <button class="btn" id="btn-refresh-contacts">Refresh</button>
-    </div>
-  </div>
-  <div id="contacts-status" class="muted" style="margin-bottom:8px">Loading contacts…</div>
-  <div class="table-wrap" id="contacts-table-wrap" style="display:none">
-    <table id="contacts-table" aria-label="Contacts"></table>
-  </div>
-</section>
+      <div id="contacts-status" class="muted" style="margin-bottom:8px">Loading contacts…</div>
+      <div class="table-wrap" id="contacts-table-wrap" style="display:none">
+        <table id="contacts-table" aria-label="Contacts"></table>
+      </div>
+    </section>
+  </main>
 
   <!-- Add Client Modal -->
   <div class="modal-backdrop" id="add-modal-backdrop" role="dialog" aria-modal="true">
@@ -313,127 +301,82 @@
     const clientsTable = document.getElementById('clients-table');
     document.getElementById('btn-refresh-clients').addEventListener('click', loadClients);
 
-    <script>
-// ====== CONTACTS ======
-const contactsStatus = document.getElementById('contacts-status');
-const contactsTableWrap = document.getElementById('contacts-table-wrap');
-const contactsTable = document.getElementById('contacts-table');
-const contactsGroupSel = document.getElementById('contacts-group-select');
+    async function loadClients(){
+      clientsStatus.textContent = 'Loading clients…';
+      clientsTableWrap.style.display = 'none';
+      clientsTable.innerHTML = '';
+      try {
+        const url = new URL('/', API_LIST_CLIENTS);
+        const res = await fetch(url.toString(), { headers: { 'Accept':'application/json' }});
+        const text = await res.text();
+        let data = null; try { data = JSON.parse(text); } catch {}
+        if (!res.ok) throw new Error((data && (data.error || data.message)) || text || `HTTP ${res.status}`);
 
-// Refresh repopulates the filter list (like ROI)
-document.getElementById('btn-refresh-contacts').addEventListener('click', initContactsFilters);
-// Load applies the current filter
-document.getElementById('btn-load-contacts').addEventListener('click', () => loadContacts(contactsGroupSel.value || 'ALL'));
+        const rows = (data && data.rows) || [];
+        clientsStatus.textContent = rows.length ? `Loaded ${rows.length} client${rows.length===1?'':'s'}.` : 'No clients found.';
+        if (!rows.length) return;
 
-// Populate the Group dropdown from snf-list-groups
-async function initContactsFilters(){
-  contactsStatus.textContent = 'Loading group filter…';
-  try {
-    const resG = await fetch(new URL('/', API_LIST_GROUPS), { headers:{'Accept':'application/json'} });
-    const txtG = await resG.text();
-    let dataG = null; try { dataG = JSON.parse(txtG); } catch {}
-    const rowsG = (resG.ok && dataG && Array.isArray(dataG.rows)) ? dataG.rows : [];
+        renderClientsTable(rows);
+        clientsTableWrap.style.display = '';
+      } catch (err){
+        clientsStatus.textContent = `Error loading clients: ${err.message}`;
+      }
+    }
 
-    // Reset + add ALL
-    contactsGroupSel.innerHTML = '<option value="ALL">ALL</option>';
+    function renderClientsTable(rows){
+      // Preferred columns (no IDs; referral names only)
+      const preferred = [
+        'first_name','last_name',
+        'email','phone',
+        'referred_by_first_name','referred_by_last_name',
+        'created_at','updated_at'
+      ];
+      const HIDE = new Set(['id','client_id','referred_by_id']); // Always hidden
 
-    rowsG
-      .map(r => r.group_name)
-      .filter(Boolean)
-      .sort((a,b) => a.localeCompare(b))
-      .forEach(name => {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        contactsGroupSel.appendChild(opt);
+      const keySet = new Set();
+      rows.forEach(r => Object.keys(r || {}).forEach(k => { if (!HIDE.has(k)) keySet.add(k); }));
+      const allKeys = Array.from(keySet);
+      const ordered = [
+        ...preferred.filter(k => keySet.has(k)),
+        ...allKeys.filter(k => !preferred.includes(k)).sort((a,b)=> a.localeCompare(b))
+      ];
+
+      const thead = document.createElement('thead');
+      const trh = document.createElement('tr');
+      ordered.forEach(k => {
+        const th = document.createElement('th');
+        th.textContent = prettifyHeader(k);
+        trh.appendChild(th);
+      });
+      thead.appendChild(trh);
+
+      const tbody = document.createElement('tbody');
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        ordered.forEach(k => {
+          const td = document.createElement('td');
+          let v = r[k];
+          if (v === null || v === undefined) v = '';
+          if (Array.isArray(v)) v = v.join(', ');
+          if (typeof v === 'object' && v) v = JSON.stringify(v);
+          td.textContent = String(v);
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
       });
 
-    contactsStatus.textContent = 'Filter ready. Click Load.';
-  } catch (e) {
-    contactsStatus.textContent = 'Error loading group filter: ' + e.message;
-  }
-}
-
-// Load contacts (server-side filter if supported, else client-side fallback)
-async function loadContacts(groupName = 'ALL'){
-  contactsStatus.textContent = 'Loading contacts…';
-  contactsTableWrap.style.display = 'none';
-  contactsTable.innerHTML = '';
-
-  try {
-    // Try sending both common param names so Worker can’t miss it
-    let url = API_LIST_CONTACTS;
-    const params = [];
-    if (groupName && groupName !== 'ALL') {
-      params.push(`group=${encodeURIComponent(groupName)}`);
-      params.push(`group_name=${encodeURIComponent(groupName)}`); // compatibility
-    }
-    if (params.length) url += '?' + params.join('&');
-
-    const res = await fetch(url, { headers: { 'Accept':'application/json' }});
-    const text = await res.text();
-    let data = null; try { data = JSON.parse(text); } catch {}
-
-    if (!res.ok) {
-      const msg = (data && (data.error || data.message)) || (text && text.trim()) || `HTTP ${res.status}`;
-      throw new Error(msg);
+      clientsTable.innerHTML = '';
+      clientsTable.appendChild(thead);
+      clientsTable.appendChild(tbody);
     }
 
-    // Allow either {rows:[...]} or raw array
-    let rows = Array.isArray(data) ? data : (data && data.rows) || [];
-
-    // If the Worker ignored filters, apply client-side
-    if (groupName && groupName !== 'ALL') {
-      rows = rows.filter(r => (r.group_name || '').trim() === groupName.trim());
+    function prettifyHeader(k){
+      return k
+        .replace(/_/g,' ')
+        .replace(/\b(id)\b/i, 'ID')
+        .replace(/\b(ghl)\b/i, 'GHL')
+        .replace(/\b([a-z])/g, (m)=>m.toUpperCase());
     }
-
-    contactsStatus.textContent = rows.length ? `Loaded ${rows.length} contact${rows.length===1?'':'s'}.` : 'No contacts found.';
-    if (!rows.length) return;
-
-    // default sort by last_name, first_name
-    rows.sort((a,b)=>{
-      const ln = (a.last_name||'').localeCompare(b.last_name||''); if (ln!==0) return ln;
-      return (a.first_name||'').localeCompare(b.first_name||'');
-    });
-
-    renderContactsTable(rows);
-    contactsTableWrap.style.display = '';
-  } catch (err){
-    contactsStatus.textContent = `Error loading contacts: ${err.message}`;
-  }
-}
-
-function renderContactsTable(rows){
-  const columns = [
-    { key:'first_name', label:'First Name' },
-    { key:'last_name', label:'Last Name' },
-    { key:'group_name', label:'Group' },
-    { key:'occupation_type', label:'Occupation Type' },
-    { key:'email', label:'Email' },
-    { key:'phone', label:'Phone' },
-  ];
-  const thead=document.createElement('thead');
-  const trh=document.createElement('tr');
-  columns.forEach(c=>{ const th=document.createElement('th'); th.textContent=c.label; trh.appendChild(th); });
-  thead.appendChild(trh);
-  const tbody=document.createElement('tbody');
-  rows.forEach(r=>{
-    const tr=document.createElement('tr');
-    columns.forEach(c=>{
-      const td=document.createElement('td');
-      let v = r[c.key];
-      if (c.key==='group_name') v = v || '(No Group)';
-      td.textContent = (v==null || v==='') ? '' : String(v);
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  });
-  contactsTable.innerHTML=''; contactsTable.appendChild(thead); contactsTable.appendChild(tbody);
-}
-
-// On page load: build filter, don’t auto-load until user clicks Load
-initContactsFilters();
-</script>
 
     // ===== Clients Modal (Add) =====
     const modalBackdrop = document.getElementById('add-modal-backdrop');
@@ -901,4 +844,3 @@ async function loadROI(){
   </script>
 </body>
 </html>
-
