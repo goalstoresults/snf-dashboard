@@ -65,7 +65,7 @@
 <body>
   <header>
     <div class="brand">SNF Dashboard</div>
-    <div id="version">SNF UI v0.28</div>
+    <div id="version">SNF UI v0.27</div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -178,32 +178,18 @@
     </section>
 
     <!-- Contacts Panel -->
-<section class="panel" id="panel-contacts" style="display:none">
-  <div class="toolbar">
-    <div><strong>Contacts</strong> <span class="muted">— shows group name via view</span></div>
-    <div style="display:flex; gap:8px; align-items:center">
-      <!-- 🔽 Add this block -->
-      <div class="filters" style="margin:0; gap:8px; align-items:center;">
-        <div class="grow" style="max-width:260px;">
-          <div class="label">Group</div>
-          <select class="input" id="contacts-group-select">
-            <option value="ALL">ALL</option>
-          </select>
-        </div>
-        <div>
-          <button class="btn primary" id="btn-load-contacts">Load</button>
+    <section class="panel" id="panel-contacts" style="display:none">
+      <div class="toolbar">
+        <div><strong>Contacts</strong> <span class="muted">— shows group name via view</span></div>
+        <div style="display:flex; gap:8px; align-items:center">
+          <button class="btn" id="btn-refresh-contacts">Refresh</button>
         </div>
       </div>
-      <!-- 🔼 Add this block -->
-      <button class="btn" id="btn-refresh-contacts">Refresh</button>
-    </div>
-  </div>
-  <div id="contacts-status" class="muted" style="margin-bottom:8px">Loading contacts…</div>
-  <div class="table-wrap" id="contacts-table-wrap" style="display:none">
-    <table id="contacts-table" aria-label="Contacts"></table>
-  </div>
-</section>
-
+      <div id="contacts-status" class="muted" style="margin-bottom:8px">Loading contacts…</div>
+      <div class="table-wrap" id="contacts-table-wrap" style="display:none">
+        <table id="contacts-table" aria-label="Contacts"></table>
+      </div>
+    </section>
   </main>
 
   <!-- Add Client Modal -->
